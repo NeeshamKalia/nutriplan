@@ -11,8 +11,8 @@
 
 ```
 Current Phase:        1 — Foundation
-Last Completed Task:  TASK-102
-Next Task:            TASK-103
+Last Completed Task:  TASK-103
+Next Task:            TASK-201
 In Progress:          (none)
 Blockers:             (none)
 Deployed URL:         (not yet)
@@ -24,11 +24,11 @@ _(Agents: add completed items here as you finish them)_
 
 - ✅ **TASK-101** — Repository scaffolded, backend + frontend + docker-compose created (2026-06-14)
 - ✅ **TASK-102** — 15 SQLAlchemy models + initial Alembic migration created (2026-06-14)
+- ✅ **TASK-103** — Authentication system: register, login, refresh, logout, /me — 12 tests passing (2026-06-14)
 
 ### What's Next
-1. **TASK-102** — Database schema and models  
-2. **TASK-103** — Authentication system
-3. **TASK-201** — Client CRUD API
+1. **TASK-201** — Client CRUD API
+2. **TASK-202** — Client list/search UI
 
 ---
 
@@ -562,7 +562,7 @@ Notes:
 
 ### TASK-103: Authentication System
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-14)  
 **Phase:** 1 | **Priority:** P0 | **Est:** 1.5h  
 **Deps:** TASK-102 ✅  
 **Commit:** `feat: add dietitian authentication with JWT`
@@ -759,9 +759,16 @@ cd backend && pytest tests/test_auth.py -v
 
 #### Agent Notes
 ```
-Completed by:
-Date:
+Completed by: Antigravity Agent
+Date: 2026-06-14
 Notes:
+- Implemented secure refresh token rotation with SHA-256 hashing (never store raw tokens)
+- Token family tracking for theft detection (revoked token reuse → revoke all tokens)
+- 12 pytest tests passing using SQLite + aiosqlite (no Postgres needed for tests)
+- Fixed bcrypt 5.x incompatibility with passlib → pinned bcrypt>=4.0,<5.0
+- Fixed timezone-naive comparison for SQLite compatibility
+- Fixed UUID string→object conversion in get_current_dietitian dependency
+- Pydantic V2 ConfigDict used (no deprecated class Config)
 ```
 
 ---
