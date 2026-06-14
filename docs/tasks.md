@@ -11,8 +11,8 @@
 
 ```
 Current Phase:        2 — Client Management
-Last Completed Task:  TASK-201
-Next Task:            TASK-202
+Last Completed Task:  TASK-202
+Next Task:            TASK-203
 In Progress:          (none)
 Blockers:             (none)
 Deployed URL:         (not yet)
@@ -28,8 +28,8 @@ _(Agents: add completed items here as you finish them)_
 - ✅ **TASK-201** — Client CRUD API with multi-tenant isolation — 9 tests passing (2026-06-14)
 
 ### What's Next
-1. **TASK-202** — Frontend shell, design system, auth pages
-2. **TASK-203** — Client list & detail UI
+1. **TASK-203** — Client list & detail UI
+2. **TASK-204** — Frontend client creation form
 
 ---
 
@@ -874,7 +874,7 @@ Notes:
 
 ### TASK-202: Frontend — Shell, Design System, Auth Pages
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-14)  
 **Phase:** 2 | **Priority:** P0 | **Est:** 2h  
 **Deps:** TASK-103 ✅  
 **Commit:** `feat: add dashboard shell with auth UI`
@@ -958,9 +958,17 @@ cd frontend && npm run dev
 
 #### Agent Notes
 ```
-Completed by:
-Date:
+Completed by: Antigravity Agent
+Date: 2026-06-14
 Notes:
+- Installed react-router-dom, axios, recharts
+- Built Sage Green / Warm Amber CSS theme using design tokens
+- UI Components: Button, Input, Card, Badge, LoadingSpinner
+- Layout: MainLayout, Sidebar, TopBar (responsive)
+- Created fully functional Login and Register pages
+- Configured AuthContext with token injection and 401 interceptor
+- Set up React Router with Protected and Public routes
+- Frontend builds cleanly via Vite
 ```
 
 ---

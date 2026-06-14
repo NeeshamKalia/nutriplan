@@ -1,0 +1,113 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  position: relative;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sizes */
+.btn--sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+  height: 32px;
+}
+
+.btn--md {
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--font-size-sm);
+  height: 40px;
+}
+
+.btn--lg {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-base);
+  height: 48px;
+}
+
+/* Variants */
+.btn--primary {
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
+  color: var(--text-on-primary);
+  box-shadow: var(--shadow-sm), 0 1px 2px rgba(34, 169, 98, 0.2);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-primary-400), var(--color-primary-500));
+  box-shadow: var(--shadow-md), 0 2px 8px rgba(34, 169, 98, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn--primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-xs);
+}
+
+.btn--secondary {
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-700);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: var(--color-neutral-50);
+  border-color: var(--color-neutral-300);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-neutral-600);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-800);
+}
+
+.btn--danger {
+  background: linear-gradient(135deg, var(--color-error), #dc2626);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* Loading state */
+.btn--loading {
+  position: relative;
+}
+
+.btn__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  position: absolute;
+}
+
+.btn__content--hidden {
+  visibility: hidden;
+}
