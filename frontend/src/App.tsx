@@ -10,6 +10,9 @@ import { MainLayout } from './components/layout/MainLayout';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { Dashboard } from './pages/dashboard/Dashboard';
+import { ClientsPage } from './pages/clients/ClientsPage';
+import { ClientDetailPage } from './pages/clients/ClientDetailPage';
+import { ClientFormPage } from './pages/clients/ClientFormPage';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -58,7 +61,9 @@ function App() {
         {/* Protected Routes */}
         <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
-          <Route path="clients" element={<div>Clients Page (Coming Soon)</div>} />
+          <Route path="clients" element={<ClientsPage />} />
+          <Route path="clients/new" element={<ClientFormPage />} />
+          <Route path="clients/:id" element={<ClientDetailPage />} />
           <Route path="plans" element={<div>Plans Page (Coming Soon)</div>} />
           <Route path="articles" element={<div>Articles Page (Coming Soon)</div>} />
           <Route path="settings" element={<div>Settings Page (Coming Soon)</div>} />
