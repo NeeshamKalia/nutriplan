@@ -7,9 +7,11 @@ pydantic[email]==2.9.0
 pydantic-settings==2.5.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+bcrypt>=4.0,<5.0  # passlib compat: bcrypt 5.x breaks version detection
 httpx==0.27.0
 python-multipart==0.0.12
 google-genai==1.0.0
 openai==1.50.0
 pytest==8.3.0
 pytest-asyncio==0.24.0
+aiosqlite==0.22.0

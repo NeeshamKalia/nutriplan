@@ -5,7 +5,7 @@ FastAPI application entry point with structured logging and CORS middleware.
 
 import uuid
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
@@ -16,6 +16,7 @@ from app.core.logger import (
     setup_logging,
     user_id_ctx,
 )
+from app.routers.v1 import auth
 
 # Initialize structured logging before anything else
 setup_logging(settings.LOG_LEVEL)
@@ -35,6 +36,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Versioned API routes (/api/v1/*) ---
+api_v1 = APIRouter(prefix="/api/v1")
+api_v1.include_router(auth.router)
+app.include_router(api_v1)
 
 
 @app.middleware("http")

@@ -11,8 +11,8 @@
 
 ```
 Current Phase:        1 — Foundation
-Last Completed Task:  TASK-101
-Next Task:            TASK-102
+Last Completed Task:  TASK-102
+Next Task:            TASK-103
 In Progress:          (none)
 Blockers:             (none)
 Deployed URL:         (not yet)
@@ -23,6 +23,7 @@ Repository:           c:\Users\Neesham.Kalia\Documents\nutriplan
 _(Agents: add completed items here as you finish them)_
 
 - ✅ **TASK-101** — Repository scaffolded, backend + frontend + docker-compose created (2026-06-14)
+- ✅ **TASK-102** — 15 SQLAlchemy models + initial Alembic migration created (2026-06-14)
 
 ### What's Next
 1. **TASK-102** — Database schema and models  
@@ -420,7 +421,7 @@ Notes:
 
 ### TASK-102: Database Schema & Models
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-14)  
 **Phase:** 1 | **Priority:** P0 | **Est:** 2h  
 **Deps:** TASK-101 ✅  
 **Commit:** `feat: add database models and initial migration`

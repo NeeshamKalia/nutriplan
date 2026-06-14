@@ -42,7 +42,7 @@ class Dietitian(Base):
     )
 
     # Relationships
-    clients = relationship("Client", back_populates="dietitian", lazy="selectin")
+    clients = relationship("Client", back_populates="dietitian")
     refresh_tokens = relationship("RefreshToken", back_populates="dietitian")
     protocols = relationship("Protocol", back_populates="dietitian")
     articles = relationship("Article", back_populates="dietitian")
