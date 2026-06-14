@@ -16,6 +16,7 @@ from app.schemas.meal_plan import (
     MealPlanListCollection,
     MealPlanResponse,
     MealPlanUpdate,
+    GeneratePlanRequest,
 )
 from app.services import plan_service
 
@@ -78,3 +79,14 @@ async def approve_plan(
 ):
     """Approve a meal plan."""
     return await plan_service.approve_plan(db, dietitian.id, plan_id)
+
+
+@clients_router.post("/generate", response_model=MealPlanResponse, status_code=201)
+async def generate_plan(
+    client_id: uuid.UUID,
+    data: GeneratePlanRequest,
+    dietitian: Dietitian = Depends(get_current_dietitian),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a new meal plan using AI."""
+    return await plan_service.generate_plan_for_client(db, dietitian.id, client_id, data)

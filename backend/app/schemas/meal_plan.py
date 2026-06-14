@@ -67,6 +67,16 @@ class MealPlanUpdate(BaseModel):
     days: List[MealPlanDayCreate] | None = None
 
 
+class MealPlanValidationResponse(BaseModel):
+    id: UUID
+    validation_type: str
+    passed: bool
+    severity: str | None = None
+    message: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class MealPlanResponse(MealPlanBase):
     id: UUID
     client_id: UUID
@@ -80,6 +90,7 @@ class MealPlanResponse(MealPlanBase):
     updated_at: datetime | None = None
     approved_at: datetime | None = None
     days: List[MealPlanDayResponse] = []
+    validations: List[MealPlanValidationResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -98,3 +109,7 @@ class MealPlanListResponse(BaseModel):
 class MealPlanListCollection(BaseModel):
     plans: List[MealPlanListResponse]
     total: int
+
+class GeneratePlanRequest(BaseModel):
+    week_start_date: date
+    custom_instructions: str | None = None

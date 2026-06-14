@@ -7,8 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.client import Client
-from app.models.meal_plan import MealPlan, MealPlanDay, MealPlanItem
-from app.schemas.meal_plan import MealPlanCreate, MealPlanUpdate
+from app.models.food_item import FoodItem
+from app.models.meal_plan import MealPlan, MealPlanDay, MealPlanItem, MealPlanValidation
+from app.schemas.meal_plan import MealPlanCreate, MealPlanUpdate, GeneratePlanRequest
+from app.ai.plan_generator import generate_meal_plan
+from app.ai.plan_validator import run_all_validations
 
 
 async def _verify_client_access(db: AsyncSession, dietitian_id: uuid.UUID, client_id: uuid.UUID) -> Client:
@@ -27,7 +30,8 @@ async def _get_plan_with_auth(db: AsyncSession, dietitian_id: uuid.UUID, plan_id
     result = await db.execute(
         select(MealPlan)
         .options(
-            selectinload(MealPlan.days).selectinload(MealPlanDay.items)
+            selectinload(MealPlan.days).selectinload(MealPlanDay.items),
+            selectinload(MealPlan.validations)
         )
         .where(MealPlan.id == plan_id, MealPlan.dietitian_id == dietitian_id)
     )
@@ -173,3 +177,73 @@ async def approve_plan(db: AsyncSession, dietitian_id: uuid.UUID, plan_id: uuid.
     
     await db.commit()
     return plan
+
+
+async def generate_plan_for_client(
+    db: AsyncSession, dietitian_id: uuid.UUID, client_id: uuid.UUID, data: GeneratePlanRequest
+) -> MealPlan:
+    """Generate a meal plan using AI."""
+    client = await _verify_client_access(db, dietitian_id, client_id)
+    
+    result = await db.execute(select(FoodItem))
+    food_items = result.scalars().all()
+    
+    plan_data, metadata = await generate_meal_plan(
+        client_profile=client,
+        food_items=list(food_items),
+        custom_instructions=data.custom_instructions
+    )
+    
+    validations = run_all_validations(plan_data, client)
+    
+    plan = MealPlan(
+        client_id=client_id,
+        dietitian_id=dietitian_id,
+        title=f"AI Generated Plan - {data.week_start_date}",
+        week_start_date=data.week_start_date,
+        custom_instructions=data.custom_instructions,
+        status="draft",
+        generation_model=metadata.get("model"),
+        generation_tokens_used=metadata.get("tokens_used"),
+        generation_cost_usd=metadata.get("cost_usd"),
+        generation_duration_ms=metadata.get("duration_ms"),
+        days=[],
+        validations=[]
+    )
+    
+    for day_data in plan_data.get("days", []):
+        day = MealPlanDay(
+            day_number=day_data.get("day_number", 1),
+            day_label=day_data.get("day_label", ""),
+            items=[]
+        )
+        for item_data in day_data.get("items", []):
+            item = MealPlanItem(
+                meal_type=item_data.get("meal_type", "unknown"),
+                food_name=item_data.get("food_name", "Unknown"),
+                portion_description=item_data.get("portion_description", ""),
+                portion_grams=item_data.get("portion_grams"),
+                calories=item_data.get("calories", 0),
+                protein_g=item_data.get("protein_g", 0.0),
+                carbs_g=item_data.get("carbs_g", 0.0),
+                fat_g=item_data.get("fat_g", 0.0),
+                preparation_notes=item_data.get("preparation_notes")
+            )
+            day.items.append(item)
+        plan.days.append(day)
+        
+    for val in validations:
+        v = MealPlanValidation(
+            validation_type=val["type"],
+            passed=val["passed"],
+            severity=val["severity"],
+            message=val["message"]
+        )
+        plan.validations.append(v)
+        
+    _calculate_totals(plan)
+    db.add(plan)
+    await db.commit()
+    
+    return await _get_plan_with_auth(db, dietitian_id, plan.id)
+

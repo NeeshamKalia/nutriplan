@@ -10,9 +10,9 @@
 **⚠️ AGENTS: Update this section after every task completion.**
 
 ```
-Current Phase:        2 — Client Management
-Last Completed Task:  TASK-303
-Next Task:            TASK-401
+Current Phase:        4 — AI Plan Generation
+Last Completed Task:  TASK-401
+Next Task:            TASK-402
 In Progress:          (none)
 Blockers:             (none)
 Deployed URL:         (not yet)
@@ -26,10 +26,16 @@ _(Agents: add completed items here as you finish them)_
 - ✅ **TASK-102** — 15 SQLAlchemy models + initial Alembic migration created (2026-06-14)
 - ✅ **TASK-103** — Authentication system: register, login, refresh, logout, /me — 12 tests passing (2026-06-14)
 - ✅ **TASK-201** — Client CRUD API with multi-tenant isolation — 9 tests passing (2026-06-14)
+- ✅ **TASK-202** — Frontend - Shell, Design System, Auth Pages (2026-06-14)
+- ✅ **TASK-203** — Frontend - Clients List & Detail Pages (2026-06-14)
+- ✅ **TASK-301** — Meal Plan Manual CRUD API (2026-06-14)
+- ✅ **TASK-302** — Indian Food Database (2026-06-14)
+- ✅ **TASK-303** — Frontend - Plan Editor (2026-06-14)
+- ✅ **TASK-401** — Simple AI Plan Generator (2026-06-14)
 
 ### What's Next
-1. **TASK-401** — Simple AI Plan Generator
-2. **TASK-402** — Frontend - AI Generation Trigger
+1. **TASK-402** — Frontend - AI Generation Trigger
+2. **TASK-501** — WhatsApp Webhook & Send Service
 
 ---
 
@@ -1208,7 +1214,7 @@ Notes:
 
 ### TASK-401: Simple AI Plan Generator
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-14)  
 **Phase:** 4 | **Priority:** P0 | **Est:** 2.5h  
 **Deps:** TASK-301 ✅, TASK-302 ✅  
 **Commit:** `feat: add AI meal plan generation (simple prompt + structured output)`
@@ -1355,9 +1361,14 @@ pytest tests/test_plan_validator.py -v
 
 #### Agent Notes
 ```
-Completed by:
-Date:
+Completed by: Antigravity Agent
+Date: 2026-06-14
 Notes:
+- Created AI generator logic with simple structured JSON prompt
+- Added AI validation rules for allergens, calorie targets, and dietary types
+- wired generator and validation to `POST /api/v1/clients/{client_id}/plans/generate` endpoint
+- Updated MealPlan and models to store AI validation results
+- Passed pytest for `test_plan_validator.py`
 ```
 
 ---
