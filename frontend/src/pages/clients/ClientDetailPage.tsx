@@ -6,21 +6,46 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { plansApi } from '../../api/plans';
+import type { MealPlan } from '../../types/plan';
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [client, setClient] = useState<Client | null>(null);
+  const [plans, setPlans] = useState<MealPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'profile' | 'plans' | 'progress' | 'adherence'>('profile');
+
+  const handleCreatePlan = async () => {
+    try {
+      const startOfWeek = new Date(); // e.g., today
+      const newPlan = await plansApi.createPlan(id!, {
+        title: 'New Meal Plan',
+        week_start_date: startOfWeek.toISOString().split('T')[0],
+        days: Array.from({ length: 7 }).map((_, i) => ({
+          day_number: i + 1,
+          day_label: `Day ${i + 1}`,
+          items: []
+        }))
+      });
+      navigate(`/plans/${newPlan.id}`);
+    } catch (err) {
+      alert('Failed to create plan.');
+    }
+  };
 
   useEffect(() => {
     async function fetchClient() {
       try {
-        const { data } = await api.get<Client>(`/clients/${id}`);
-        setClient(data);
+        const [clientRes, plansRes] = await Promise.all([
+          api.get<Client>(`/clients/${id}`),
+          plansApi.getPlansByClient(id!)
+        ]);
+        setClient(clientRes.data);
+        setPlans(plansRes.items || []);
       } catch (err) {
-        console.error('Failed to fetch client', err);
+        console.error('Failed to fetch client data', err);
         navigate('/clients');
       } finally {
         setIsLoading(false);
@@ -51,7 +76,7 @@ export function ClientDetailPage() {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <Button variant="secondary" onClick={() => navigate(`/clients/${id}/edit`)}>Edit Profile</Button>
-          <Button variant="primary">Generate Plan</Button>
+          <Button variant="primary" onClick={handleCreatePlan}>Create Blank Plan</Button>
         </div>
       </div>
 
@@ -126,11 +151,28 @@ export function ClientDetailPage() {
 
       {activeTab === 'plans' && (
         <Card>
-          <div style={{ padding: '3rem', textAlign: 'center' }}>
-            <h3 className="font-semibold text-lg mb-2">No Meal Plans</h3>
-            <p className="text-muted mb-4">Generate an AI meal plan or create one manually.</p>
-            <Button>Generate Plan</Button>
-          </div>
+          {plans.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center' }}>
+              <h3 className="font-semibold text-lg mb-2">No Meal Plans</h3>
+              <p className="text-muted mb-4">Create a blank plan or generate one with AI.</p>
+              <Button onClick={handleCreatePlan}>Create Blank Plan</Button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {plans.map(plan => (
+                <div key={plan.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                  <div>
+                    <h4 className="font-semibold">{plan.title || 'Untitled Plan'}</h4>
+                    <p className="text-muted text-sm">Starts: {plan.week_start_date}</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <Badge variant={plan.status === 'draft' ? 'warning' : 'success'}>{plan.status}</Badge>
+                    <Button variant="secondary" onClick={() => navigate(`/plans/${plan.id}`)}>View / Edit</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 

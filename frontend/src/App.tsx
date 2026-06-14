@@ -13,6 +13,7 @@ import { Dashboard } from './pages/dashboard/Dashboard';
 import { ClientsPage } from './pages/clients/ClientsPage';
 import { ClientDetailPage } from './pages/clients/ClientDetailPage';
 import { ClientFormPage } from './pages/clients/ClientFormPage';
+import { PlanEditorPage } from './pages/plans/PlanEditorPage';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -64,7 +65,7 @@ function App() {
           <Route path="clients" element={<ClientsPage />} />
           <Route path="clients/new" element={<ClientFormPage />} />
           <Route path="clients/:id" element={<ClientDetailPage />} />
-          <Route path="plans" element={<div>Plans Page (Coming Soon)</div>} />
+          <Route path="plans/:id" element={<PlanEditorPage />} />
           <Route path="articles" element={<div>Articles Page (Coming Soon)</div>} />
           <Route path="settings" element={<div>Settings Page (Coming Soon)</div>} />
         </Route>
