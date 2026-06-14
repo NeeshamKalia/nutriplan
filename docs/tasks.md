@@ -11,23 +11,23 @@
 
 ```
 Current Phase:        1 — Foundation
-Last Completed Task:  (none)
-Next Task:            TASK-101
+Last Completed Task:  TASK-101
+Next Task:            TASK-102
 In Progress:          (none)
 Blockers:             (none)
 Deployed URL:         (not yet)
-Repository:           (not yet created)
+Repository:           c:\Users\Neesham.Kalia\Documents\nutriplan
 ```
 
 ### What's Done
 _(Agents: add completed items here as you finish them)_
 
-- (nothing yet)
+- ✅ **TASK-101** — Repository scaffolded, backend + frontend + docker-compose created (2026-06-14)
 
 ### What's Next
-1. **TASK-101** — Create repository and scaffold project
-2. **TASK-102** — Database schema and models  
-3. **TASK-103** — Authentication system
+1. **TASK-102** — Database schema and models  
+2. **TASK-103** — Authentication system
+3. **TASK-201** — Client CRUD API
 
 ---
 
@@ -68,7 +68,7 @@ _(Agents: add completed items here as you finish them)_
 
 ### TASK-101: Repository & Project Scaffolding
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-14)  
 **Phase:** 1 | **Priority:** P0 | **Est:** 1h  
 **Deps:** None  
 **Commit:** `feat: initialize nutriplan monorepo`
