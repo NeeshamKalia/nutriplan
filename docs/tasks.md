@@ -10,9 +10,9 @@
 **⚠️ AGENTS: Update this section after every task completion.**
 
 ```
-Current Phase:        1 — Foundation
-Last Completed Task:  TASK-103
-Next Task:            TASK-201
+Current Phase:        2 — Client Management
+Last Completed Task:  TASK-201
+Next Task:            TASK-202
 In Progress:          (none)
 Blockers:             (none)
 Deployed URL:         (not yet)
@@ -25,10 +25,11 @@ _(Agents: add completed items here as you finish them)_
 - ✅ **TASK-101** — Repository scaffolded, backend + frontend + docker-compose created (2026-06-14)
 - ✅ **TASK-102** — 15 SQLAlchemy models + initial Alembic migration created (2026-06-14)
 - ✅ **TASK-103** — Authentication system: register, login, refresh, logout, /me — 12 tests passing (2026-06-14)
+- ✅ **TASK-201** — Client CRUD API with multi-tenant isolation — 9 tests passing (2026-06-14)
 
 ### What's Next
-1. **TASK-201** — Client CRUD API
-2. **TASK-202** — Client list/search UI
+1. **TASK-202** — Frontend shell, design system, auth pages
+2. **TASK-203** — Client list & detail UI
 
 ---
 
@@ -779,7 +780,7 @@ Notes:
 
 ### TASK-201: Client CRUD API
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-14)  
 **Phase:** 2 | **Priority:** P0 | **Est:** 1.5h  
 **Deps:** TASK-103 ✅  
 **Commit:** `feat: add client CRUD with health profiles`
@@ -857,9 +858,16 @@ pytest tests/test_clients.py -v
 
 #### Agent Notes
 ```
-Completed by:
-Date:
+Completed by: Antigravity Agent
+Date: 2026-06-14
 Notes:
+- All 5 REST endpoints: POST, GET list, GET detail, PUT, DELETE (archive)
+- Multi-tenant isolation enforced — every query filters by dietitian_id
+- Unique WhatsApp number per dietitian (UniqueConstraint + service-level check)
+- Soft delete via status='archived' + archived_at timestamp
+- Audit log entries for client_created and client_archived
+- 9 tests passing including multi-tenant isolation test
+- ARRAY/JSONB columns use TypeDecorator for SQLite compatibility in tests
 ```
 
 ---
