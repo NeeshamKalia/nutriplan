@@ -11,8 +11,8 @@
 
 ```
 Current Phase:        2 — Client Management
-Last Completed Task:  TASK-204
-Next Task:            TASK-301
+Last Completed Task:  TASK-301
+Next Task:            TASK-302
 In Progress:          (none)
 Blockers:             (none)
 Deployed URL:         (not yet)
@@ -28,8 +28,8 @@ _(Agents: add completed items here as you finish them)_
 - ✅ **TASK-201** — Client CRUD API with multi-tenant isolation — 9 tests passing (2026-06-14)
 
 ### What's Next
-1. **TASK-301** — Meal Plan Manual CRUD API
-2. **TASK-302** — Indian Food Database
+1. **TASK-302** — Indian Food Database
+2. **TASK-303** — Frontend - Plan Editor
 
 ---
 
@@ -1033,7 +1033,7 @@ Notes:
 
 ### TASK-301: Meal Plan Manual CRUD API
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-14)  
 **Phase:** 3 | **Priority:** P0 | **Est:** 1.5h  
 **Deps:** TASK-201 ✅  
 **Commit:** `feat: add meal plan CRUD`
@@ -1089,9 +1089,13 @@ pytest tests/test_plans.py -v
 
 #### Agent Notes
 ```
-Completed by:
-Date:
+Completed by: Antigravity Agent
+Date: 2026-06-14
 Notes:
+- Created schemas for MealPlan, MealPlanDay, MealPlanItem
+- Created plan_service.py with macro auto-calculation and full tree insertion
+- Set up plans.py router with client-scoped lists and plan-scoped updates
+- All endpoints tested and pass multi-tenant isolation tests
 ```
 
 ---

@@ -16,7 +16,7 @@ from app.core.logger import (
     setup_logging,
     user_id_ctx,
 )
-from app.routers.v1 import auth, clients
+from app.routers.v1 import auth, clients, plans
 
 # Initialize structured logging before anything else
 setup_logging(settings.LOG_LEVEL)
@@ -41,6 +41,8 @@ app.add_middleware(
 api_v1 = APIRouter(prefix="/api/v1")
 api_v1.include_router(auth.router)
 api_v1.include_router(clients.router)
+api_v1.include_router(plans.clients_router)
+api_v1.include_router(plans.plans_router)
 app.include_router(api_v1)
 
 
