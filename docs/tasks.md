@@ -37,12 +37,12 @@ _(Agents: add completed items here as you finish them)_
 - ✅ **TASK-502** — Intent Classification & Command Handlers (2026-06-14)
 - ✅ **TASK-503** — Plan Delivery via WhatsApp (2026-06-14)
 - ✅ **TASK-601** — Meal Tracking & AI Substitution via WhatsApp (2026-06-15)
+- ✅ **TASK-602** — Adherence Dashboard (2026-06-15)
 - ✅ **TASK-701** — Progress Tracking API + UI (2026-06-15)
 - ✅ **TASK-702** — Docker + CI/CD + Deploy (2026-06-15)
 
 ### What's Next
 1. **TASK-801** — Articles CRUD API + editor UI + landing page
-2. **TASK-601** — DONE & Deviation Handlers (Backlog)
 
 ---
 
@@ -1518,7 +1518,7 @@ Intent classifier checks deviation before today to avoid false matches on "skipp
 
 ### TASK-602: Adherence Dashboard
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-15)  
 **Phase:** 6 | **Priority:** P1 | **Est:** 1.5h  
 **Deps:** TASK-601 ✅, TASK-203 ✅  
 **Commit:** `feat: add adherence dashboard`
@@ -1531,9 +1531,11 @@ Intent classifier checks deviation before today to avoid false matches on "skipp
 
 #### Agent Notes
 ```
-Completed by:
-Date:
-Notes:
+Completed by: Cursor Agent
+Date: 2026-06-15
+Notes: adherence_service.py with 7-day lookback, dashboard overview endpoint,
+AdherenceTab component, updated Dashboard with attention list + recent activity.
+55 backend tests passing.
 ```
 
 ---
