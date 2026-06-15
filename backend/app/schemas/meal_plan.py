@@ -89,6 +89,7 @@ class MealPlanResponse(MealPlanBase):
     created_at: datetime
     updated_at: datetime | None = None
     approved_at: datetime | None = None
+    delivered_at: datetime | None = None
     days: List[MealPlanDayResponse] = []
     validations: List[MealPlanValidationResponse] = []
 

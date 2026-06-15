@@ -1,4 +1,5 @@
-from pydantic_settings import BaseSettings
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -33,9 +34,15 @@ class Settings(BaseSettings):
     APP_NAME: str = "NutriPlan"
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def validate_production_settings(self):
+        if not self.DEBUG and self.JWT_SECRET == "change-this-in-production":
+            raise ValueError("JWT_SECRET must be changed from the default in production (DEBUG=False).")
+        return self
 
 
 settings = Settings()

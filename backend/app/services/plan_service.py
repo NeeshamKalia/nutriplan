@@ -6,12 +6,24 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.logger import get_logger
 from app.models.client import Client
 from app.models.food_item import FoodItem
 from app.models.meal_plan import MealPlan, MealPlanDay, MealPlanItem, MealPlanValidation
 from app.schemas.meal_plan import MealPlanCreate, MealPlanUpdate, GeneratePlanRequest
 from app.ai.plan_generator import generate_meal_plan
 from app.ai.plan_validator import run_all_validations
+from app.services.whatsapp_service import whatsapp_service
+from app.whatsapp.message_formatter import format_daily_plan
+
+logger = get_logger(__name__)
+
+# Valid plan status transitions
+_VALID_TRANSITIONS = {
+    "draft": {"approved"},
+    "approved": {"delivered"},
+    "delivered": {"expired"},
+}
 
 
 async def _verify_client_access(db: AsyncSession, dietitian_id: uuid.UUID, client_id: uuid.UUID) -> Client:
@@ -168,15 +180,71 @@ async def update_plan(
 
 
 async def approve_plan(db: AsyncSession, dietitian_id: uuid.UUID, plan_id: uuid.UUID) -> MealPlan:
-    """Mark a plan as approved by the dietitian."""
+    """Approve a plan and attempt WhatsApp delivery.
+
+    State guard: only 'draft' plans can be approved.
+    WhatsApp delivery is attempted inline but failure does NOT block approval.
+    If delivery fails, plan stays 'approved' (not 'delivered') so the
+    dietitian can see and retry.
+    """
     plan = await _get_plan_with_auth(db, dietitian_id, plan_id)
-    
+
+    # State guard: only draft plans can be approved
+    if plan.status != "draft":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot approve a plan with status '{plan.status}'. "
+                   f"Only 'draft' plans can be approved.",
+        )
+
     plan.status = "approved"
     plan.approved_at = datetime.now(timezone.utc)
     plan.updated_at = datetime.now(timezone.utc)
-    
     await db.commit()
-    return plan
+
+    # Tenant-scoped client lookup for WhatsApp delivery
+    result = await db.execute(
+        select(Client).where(
+            Client.id == plan.client_id,
+            Client.dietitian_id == dietitian_id,
+        )
+    )
+    client = result.scalar_one_or_none()
+    to_number = client.whatsapp_number if client else None
+
+    if to_number:
+        try:
+            # 1. Send announcement
+            await whatsapp_service.send_text_message(
+                to_number,
+                f"🎉 Great news! Your new meal plan '{plan.title}' is ready!",
+            )
+
+            # 2. Send Day 1 detailed meals
+            day_1 = next((d for d in plan.days if d.day_number == 1), None)
+            if day_1:
+                msg = format_daily_plan(day_1)
+                await whatsapp_service.send_text_message(to_number, msg)
+
+            # 3. Mark as delivered only on success
+            plan.status = "delivered"
+            plan.delivered_at = datetime.now(timezone.utc)
+            await db.commit()
+            logger.info(f"Plan {plan.id} delivered to {to_number}")
+
+        except Exception as e:
+            # Plan stays 'approved' — dietitian can see delivery failed
+            logger.error(
+                f"WhatsApp delivery failed for plan {plan.id}: {e}. "
+                f"Plan remains 'approved' — delivery can be retried."
+            )
+    else:
+        logger.warning(
+            f"No WhatsApp number for plan {plan.id} client. "
+            f"Plan approved but not delivered."
+        )
+
+    return await _get_plan_with_auth(db, dietitian_id, plan_id)
 
 
 async def generate_plan_for_client(
@@ -185,7 +253,14 @@ async def generate_plan_for_client(
     """Generate a meal plan using AI."""
     client = await _verify_client_access(db, dietitian_id, client_id)
     
-    result = await db.execute(select(FoodItem))
+    from sqlalchemy import or_
+    stmt = select(FoodItem).where(
+        or_(
+            FoodItem.dietitian_id.is_(None),
+            FoodItem.dietitian_id == dietitian_id
+        )
+    ).limit(200)
+    result = await db.execute(stmt)
     food_items = result.scalars().all()
     
     plan_data, metadata = await generate_meal_plan(

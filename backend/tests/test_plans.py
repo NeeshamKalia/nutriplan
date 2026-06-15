@@ -199,8 +199,9 @@ async def test_approve_plan(client):
     response = await client.post(f"/api/v1/plans/{plan_id}/approve", headers=_auth_header(token))
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "approved"
+    assert data["status"] == "delivered"
     assert data["approved_at"] is not None
+    assert data["delivered_at"] is not None
 
 
 @pytest.mark.asyncio

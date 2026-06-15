@@ -10,9 +10,9 @@
 **⚠️ AGENTS: Update this section after every task completion.**
 
 ```
-Current Phase:        4 — AI Plan Generation
-Last Completed Task:  TASK-401
-Next Task:            TASK-402
+Current Phase:        6 — Meal Tracking
+Last Completed Task:  TASK-503
+Next Task:            TASK-601
 In Progress:          (none)
 Blockers:             (none)
 Deployed URL:         (not yet)
@@ -32,10 +32,14 @@ _(Agents: add completed items here as you finish them)_
 - ✅ **TASK-302** — Indian Food Database (2026-06-14)
 - ✅ **TASK-303** — Frontend - Plan Editor (2026-06-14)
 - ✅ **TASK-401** — Simple AI Plan Generator (2026-06-14)
+- ✅ **TASK-402** — Frontend - AI Generation Trigger (2026-06-14)
+- ✅ **TASK-501** — WhatsApp Webhook & Send Service (2026-06-14)
+- ✅ **TASK-502** — Intent Classification & Command Handlers (2026-06-14)
+- ✅ **TASK-503** — Plan Delivery via WhatsApp (2026-06-14)
 
 ### What's Next
-1. **TASK-402** — Frontend - AI Generation Trigger
-2. **TASK-501** — WhatsApp Webhook & Send Service
+1. **TASK-601** — DONE & Deviation Handlers
+2. **TASK-602** — SWAP Handler (AI Substitution)
 
 ---
 
@@ -1375,7 +1379,7 @@ Notes:
 
 ### TASK-402: Connect AI to Plan Editor UI
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-14)  
 **Phase:** 4 | **Priority:** P0 | **Est:** 1h  
 **Deps:** TASK-401 ✅, TASK-303 ✅  
 **Commit:** `feat: wire AI plan generation to editor UI`
@@ -1393,9 +1397,14 @@ Notes:
 
 #### Agent Notes
 ```
-Completed by:
-Date:
+Completed by: Antigravity Agent
+Date: 2026-06-14
 Notes:
+- Created `AIGenerateModal` component with optional custom instructions and loading states.
+- Hooked it into `ClientDetailPage.tsx` for initial generation.
+- Added "Regenerate with AI" logic and validation result display panel into `PlanEditorPage.tsx`.
+- Updated `plan.ts` types to properly include `MealPlanValidation`.
+- Updated `plans.ts` API to expose `generatePlan` POST endpoint.
 ```
 
 ---

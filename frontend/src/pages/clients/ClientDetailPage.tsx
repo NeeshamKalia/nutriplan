@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { plansApi } from '../../api/plans';
 import type { MealPlan } from '../../types/plan';
+import { AIGenerateModal } from '../../components/plans/AIGenerateModal';
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +17,26 @@ export function ClientDetailPage() {
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'profile' | 'plans' | 'progress' | 'adherence'>('profile');
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGeneratePlan = async (instructions: string) => {
+    try {
+      setIsGenerating(true);
+      const startOfWeek = new Date();
+      const newPlan = await plansApi.generatePlan(id!, {
+        week_start_date: startOfWeek.toISOString().split('T')[0],
+        custom_instructions: instructions || undefined,
+      });
+      setIsGenerating(false);
+      setIsAIModalOpen(false);
+      navigate(`/plans/${newPlan.id}`);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate plan.');
+      setIsGenerating(false);
+    }
+  };
 
   const handleCreatePlan = async () => {
     try {
@@ -43,7 +64,7 @@ export function ClientDetailPage() {
           plansApi.getPlansByClient(id!)
         ]);
         setClient(clientRes.data);
-        setPlans(plansRes.items || []);
+        setPlans(plansRes.plans || []);
       } catch (err) {
         console.error('Failed to fetch client data', err);
         navigate('/clients');
@@ -76,7 +97,8 @@ export function ClientDetailPage() {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <Button variant="secondary" onClick={() => navigate(`/clients/${id}/edit`)}>Edit Profile</Button>
-          <Button variant="primary" onClick={handleCreatePlan}>Create Blank Plan</Button>
+          <Button variant="secondary" onClick={handleCreatePlan}>Blank Plan</Button>
+          <Button variant="primary" onClick={() => setIsAIModalOpen(true)}>Generate with AI</Button>
         </div>
       </div>
 
@@ -155,7 +177,10 @@ export function ClientDetailPage() {
             <div style={{ padding: '3rem', textAlign: 'center' }}>
               <h3 className="font-semibold text-lg mb-2">No Meal Plans</h3>
               <p className="text-muted mb-4">Create a blank plan or generate one with AI.</p>
-              <Button onClick={handleCreatePlan}>Create Blank Plan</Button>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <Button variant="secondary" onClick={handleCreatePlan}>Create Blank Plan</Button>
+                <Button variant="primary" onClick={() => setIsAIModalOpen(true)}>Generate with AI</Button>
+              </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -184,6 +209,13 @@ export function ClientDetailPage() {
           </div>
         </Card>
       )}
+
+      <AIGenerateModal
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+        onGenerate={handleGeneratePlan}
+        isLoading={isGenerating}
+      />
     </div>
   );
 }

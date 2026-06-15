@@ -16,7 +16,8 @@ from app.core.logger import (
     setup_logging,
     user_id_ctx,
 )
-from app.routers.v1 import auth, clients, plans, foods
+from app.routers.v1 import auth, clients, plans, foods, dashboard
+from app.routers import webhook
 
 # Initialize structured logging before anything else
 setup_logging(settings.LOG_LEVEL)
@@ -28,14 +29,17 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS — allow Vite dev server
+# CORS — configurable origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Webhook (Not versioned) ---
+app.include_router(webhook.router)
 
 # --- Versioned API routes (/api/v1/*) ---
 api_v1 = APIRouter(prefix="/api/v1")
@@ -44,6 +48,7 @@ api_v1.include_router(clients.router)
 api_v1.include_router(plans.clients_router)
 api_v1.include_router(plans.plans_router)
 api_v1.include_router(foods.router)
+api_v1.include_router(dashboard.router)
 app.include_router(api_v1)
 
 

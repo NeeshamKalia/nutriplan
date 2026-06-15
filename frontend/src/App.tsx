@@ -65,6 +65,7 @@ function App() {
           <Route path="clients" element={<ClientsPage />} />
           <Route path="clients/new" element={<ClientFormPage />} />
           <Route path="clients/:id" element={<ClientDetailPage />} />
+          <Route path="clients/:id/edit" element={<ClientFormPage />} />
           <Route path="plans/:id" element={<PlanEditorPage />} />
           <Route path="articles" element={<div>Articles Page (Coming Soon)</div>} />
           <Route path="settings" element={<div>Settings Page (Coming Soon)</div>} />

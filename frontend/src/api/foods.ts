@@ -1,4 +1,4 @@
-import api from './index';
+import api from './client';
 import { FoodItem } from '../types/plan';
 
 export const foodsApi = {

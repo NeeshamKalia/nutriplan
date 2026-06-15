@@ -1,9 +1,9 @@
-import api from './index';
+import api from './client';
 import { MealPlan } from '../types/plan';
 
 export const plansApi = {
   getPlansByClient: async (clientId: string) => {
-    const response = await api.get<{ items: MealPlan[]; total: number }>(`/clients/${clientId}/plans`);
+    const response = await api.get<{ plans: MealPlan[]; total: number }>(`/clients/${clientId}/plans`);
     return response.data;
   },
 
@@ -24,6 +24,11 @@ export const plansApi = {
 
   approvePlan: async (planId: string) => {
     const response = await api.post<MealPlan>(`/plans/${planId}/approve`);
+    return response.data;
+  },
+
+  generatePlan: async (clientId: string, data: { week_start_date: string; custom_instructions?: string }) => {
+    const response = await api.post<MealPlan>(`/clients/${clientId}/plans/generate`, data);
     return response.data;
   },
 };

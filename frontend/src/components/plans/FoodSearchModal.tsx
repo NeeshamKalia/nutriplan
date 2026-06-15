@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { foodsApi } from '../../api/foods';
 import { FoodItem } from '../../types/plan';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
@@ -16,12 +16,30 @@ export const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClos
   const [query, setQuery] = useState('');
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       handleSearch('');
+      setQuery('');
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
     }
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const handleSearch = async (searchQuery: string) => {
     setLoading(true);
@@ -38,32 +56,64 @@ export const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClos
   const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
-    // basic debounce
-    if (window.searchTimeout) clearTimeout(window.searchTimeout);
-    window.searchTimeout = setTimeout(() => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
       handleSearch(val);
     }, 300);
+  };
+
+  const handleClear = () => {
+    setQuery('');
+    handleSearch('');
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div 
+      className="modal-overlay" 
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="food-search-title"
+    >
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Search Food Database</h2>
-          <button className="btn-close" onClick={onClose}>&times;</button>
+          <h2 id="food-search-title">Search Food Database</h2>
+          <button className="btn-close" onClick={onClose} aria-label="Close modal">&times;</button>
         </div>
         
         <div className="modal-body">
-          <input 
-            type="text" 
-            className="food-search-input" 
-            placeholder="Search for roti, paneer, chicken..." 
-            value={query}
-            onChange={handleQueryChange}
-            autoFocus
-          />
+          <div style={{ position: 'relative', marginBottom: '1rem' }}>
+            <input 
+              type="text" 
+              className="food-search-input" 
+              placeholder="Search for roti, paneer, chicken..." 
+              value={query}
+              onChange={handleQueryChange}
+              autoFocus
+              style={{ width: '100%', paddingRight: '2.5rem' }}
+            />
+            {query && (
+              <button 
+                onClick={handleClear}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: '1.2rem'
+                }}
+                aria-label="Clear search"
+              >
+                &times;
+              </button>
+            )}
+          </div>
 
           <div className="food-results">
             {loading ? (
@@ -92,10 +142,3 @@ export const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClos
     </div>
   );
 };
-
-// Typescript declaration for window
-declare global {
-  interface Window {
-    searchTimeout: any;
-  }
-}

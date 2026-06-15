@@ -23,7 +23,12 @@ async def list_foods(
     db: AsyncSession = Depends(get_db),
 ):
     """List and search food items."""
-    stmt = select(FoodItem)
+    stmt = select(FoodItem).where(
+        or_(
+            FoodItem.dietitian_id.is_(None),
+            FoodItem.dietitian_id == dietitian.id
+        )
+    )
 
     if q:
         search = f"%{q}%"

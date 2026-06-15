@@ -42,8 +42,17 @@ export interface MealPlan {
   avg_daily_fat_g: number;
   avg_daily_fiber_g?: number;
   days: MealPlanDay[];
+  validations?: MealPlanValidation[];
   created_at: string;
   updated_at: string;
+}
+
+export interface MealPlanValidation {
+  id: string;
+  validation_type: string;
+  passed: boolean;
+  severity?: 'warning' | 'error' | 'info' | string;
+  message?: string;
 }
 
 export interface FoodItem {

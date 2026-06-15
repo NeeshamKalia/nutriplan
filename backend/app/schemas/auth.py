@@ -1,6 +1,6 @@
 """Pydantic schemas for authentication requests and responses."""
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
@@ -10,6 +10,15 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=8, description="Minimum 8 characters")
     full_name: str = Field(..., min_length=2)
     phone: str | None = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_complexity(cls, v: str) -> str:
+        if not any(char.isalpha() for char in v):
+            raise ValueError("Password must contain at least one letter")
+        if not any(char.isdigit() for char in v):
+            raise ValueError("Password must contain at least one number")
+        return v
 
 
 class LoginRequest(BaseModel):
