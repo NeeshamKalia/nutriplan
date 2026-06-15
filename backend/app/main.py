@@ -16,7 +16,7 @@ from app.core.logger import (
     setup_logging,
     user_id_ctx,
 )
-from app.routers.v1 import auth, clients, plans, foods, dashboard
+from app.routers.v1 import auth, clients, plans, foods, dashboard, progress
 from app.routers import webhook
 
 # Initialize structured logging before anything else
@@ -49,6 +49,7 @@ api_v1.include_router(plans.clients_router)
 api_v1.include_router(plans.plans_router)
 api_v1.include_router(foods.router)
 api_v1.include_router(dashboard.router)
+api_v1.include_router(progress.router)
 app.include_router(api_v1)
 
 

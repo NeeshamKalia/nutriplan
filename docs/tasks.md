@@ -10,9 +10,9 @@
 **⚠️ AGENTS: Update this section after every task completion.**
 
 ```
-Current Phase:        6 — Meal Tracking
-Last Completed Task:  TASK-503
-Next Task:            TASK-601
+Current Phase:        7 — Progress Tracking
+Last Completed Task:  TASK-701
+Next Task:            TASK-702
 In Progress:          (none)
 Blockers:             (none)
 Deployed URL:         (not yet)
@@ -36,10 +36,11 @@ _(Agents: add completed items here as you finish them)_
 - ✅ **TASK-501** — WhatsApp Webhook & Send Service (2026-06-14)
 - ✅ **TASK-502** — Intent Classification & Command Handlers (2026-06-14)
 - ✅ **TASK-503** — Plan Delivery via WhatsApp (2026-06-14)
+- ✅ **TASK-701** — Progress Tracking API + UI (2026-06-15)
 
 ### What's Next
-1. **TASK-601** — DONE & Deviation Handlers
-2. **TASK-602** — SWAP Handler (AI Substitution)
+1. **TASK-702** — Docker + CI/CD + Deploy
+2. **TASK-601** — DONE & Deviation Handlers (Backlog)
 
 ---
 
@@ -1539,7 +1540,7 @@ Notes:
 
 ### TASK-701: Progress Tracking API + UI
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-15)  
 **Phase:** 7 | **Priority:** P0 | **Est:** 2h  
 **Deps:** TASK-201 ✅, TASK-203 ✅  
 **Commit:** `feat: add progress tracking with weight charts`
@@ -1552,9 +1553,14 @@ Notes:
 
 #### Agent Notes
 ```
-Completed by:
-Date:
+Completed by: Antigravity Agent
+Date: 2026-06-15
 Notes:
+- Created progress endpoints in FastAPI (schemas, services, routers).
+- Added `ProgressTab.tsx` React component using `recharts` for visualization.
+- Wired ProgressTab into `ClientDetailPage.tsx`.
+- Updated WhatsApp webhook and intent classifier to handle `command_weight` via WhatsApp.
+- Added comprehensive pytest cases for multi-tenant isolation and CRUD on progress API.
 ```
 
 ---

@@ -124,6 +124,18 @@ async def process_whatsapp_message(payload: dict):
                         elif intent == 'command_grocery':
                             from app.whatsapp.handlers.grocery import handle_grocery
                             await handle_grocery(db, client, from_number)
+                        elif intent == 'command_done':
+                            from app.whatsapp.handlers.done import handle_done
+                            await handle_done(db, client, from_number)
+                        elif intent == 'command_swap':
+                            from app.whatsapp.handlers.swap import handle_swap
+                            await handle_swap(db, client, from_number, body)
+                        elif intent == 'command_weight':
+                            from app.whatsapp.handlers.weight import handle_weight
+                            await handle_weight(db, client, from_number, body)
+                        elif intent == 'deviation':
+                            from app.whatsapp.handlers.deviation import handle_deviation
+                            await handle_deviation(db, client, from_number, body)
                         elif intent == 'unknown' and msg_type == 'text':
                             from app.services.whatsapp_service import whatsapp_service
                             await whatsapp_service.send_text_message(from_number, "I didn't understand. Send HELP for commands!")

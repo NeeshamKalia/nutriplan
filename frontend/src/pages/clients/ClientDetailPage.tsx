@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { plansApi } from '../../api/plans';
 import type { MealPlan } from '../../types/plan';
 import { AIGenerateModal } from '../../components/plans/AIGenerateModal';
+import { ProgressTab } from '../../components/clients/ProgressTab';
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -201,7 +202,11 @@ export function ClientDetailPage() {
         </Card>
       )}
 
-      {(activeTab === 'progress' || activeTab === 'adherence') && (
+      {activeTab === 'progress' && (
+        <ProgressTab clientId={id!} startWeight={client.weight_kg} />
+      )}
+
+      {activeTab === 'adherence' && (
         <Card>
           <div style={{ padding: '3rem', textAlign: 'center' }}>
             <h3 className="font-semibold text-lg mb-2">Coming Soon</h3>

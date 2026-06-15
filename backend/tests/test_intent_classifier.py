@@ -11,4 +11,6 @@ def test_classify_intent():
     assert classify_intent("?") == "command_help"
     assert classify_intent("swap this item") == "command_swap"
     assert classify_intent("I don't have paneer") == "command_swap"
+    assert classify_intent("Had pizza for dinner") == "deviation"
+    assert classify_intent("Skipped lunch today") == "deviation"
     assert classify_intent("hello how are you") == "unknown"
