@@ -18,6 +18,8 @@ from app.schemas.client import (
     ClientUpdate,
 )
 from app.services import client_service
+from app.services import adherence_service
+from app.schemas.adherence import ClientAdherenceResponse
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
@@ -66,6 +68,19 @@ async def update_client(
 ):
     """Update client profile (partial update)."""
     return await client_service.update_client(db, dietitian.id, client_id, data)
+
+
+@router.get("/{client_id}/adherence", response_model=ClientAdherenceResponse)
+async def get_client_adherence(
+    client_id: uuid.UUID,
+    days: int = Query(7, ge=1, le=30),
+    dietitian: Dietitian = Depends(get_current_dietitian),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get meal adherence stats for a client."""
+    return await adherence_service.get_client_adherence(
+        db, dietitian.id, client_id, days=days
+    )
 
 
 @router.delete("/{client_id}", response_model=ClientResponse)

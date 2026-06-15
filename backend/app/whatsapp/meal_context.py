@@ -129,7 +129,7 @@ async def get_active_plan_day(
         .where(MealPlan.status == "delivered")
         .order_by(MealPlan.created_at.desc())
     )
-    plan = result.scalar_first()
+    plan = result.scalars().first()
     if not plan:
         return None
 
@@ -140,7 +140,7 @@ async def get_active_plan_day(
         .where(MealPlanDay.meal_plan_id == plan.id)
         .where(MealPlanDay.day_number == day_num)
     )
-    day = result.scalar_first()
+    day = result.scalars().first()
     if not day:
         return None
 
@@ -179,7 +179,7 @@ async def get_existing_log(
             MealLog.meal_type == meal_type,
         )
     )
-    return result.scalar_first()
+    return result.scalars().first()
 
 
 async def count_completed_meals(

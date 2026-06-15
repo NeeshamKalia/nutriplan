@@ -10,6 +10,19 @@ AI-powered practice OS for Indian nutritionists. Dietitians manage clients via a
 - **AI:** Google Gemini 2.0 Flash (free tier) + OpenAI fallback
 - **Messaging:** WhatsApp Business Cloud API
 
+## Live Demo
+
+- **Dashboard:** [https://nutriplan.vercel.app](https://nutriplan.vercel.app) *(Pending deployment)*
+- **API URL:** [https://nutriplan-api.up.railway.app](https://nutriplan-api.up.railway.app) *(Pending deployment)*
+- **WhatsApp Webhook:** Set up with Meta Business Manager to point to `/webhook/whatsapp`
+
+## Architecture
+
+1. **Dashboard:** Built in React for Dietitians.
+2. **Backend:** FastAPI handles business logic.
+3. **AI Generation:** LLMs generate structured JSON plans.
+4. **Delivery & Tracking:** Meta Cloud API manages inbound/outbound messages.
+
 ## Quick Start
 
 ```bash

@@ -237,7 +237,9 @@ async def test_handle_swap_sends_alternatives(db_session):
         ) as send_mock:
             await handle_swap(db, client, "919999999999", "Swap paneer")
 
-    suggest_mock.assert_awaited_once_with(client, "paneer", None)
+    suggest_mock.assert_awaited_once()
+    assert suggest_mock.await_args.args[0] == client
+    assert suggest_mock.await_args.args[1] == "paneer"
     send_mock.assert_awaited_once_with("919999999999", "Try tofu instead.")
 
 
