@@ -9,7 +9,7 @@ interface SidebarProps {
 const NAV_ITEMS = [
   { label: 'Dashboard', path: '/', icon: '📊' },
   { label: 'Clients', path: '/clients', icon: '👥' },
-  { label: 'Plans', path: '/plans', icon: '📝' },
+  { label: 'Protocols', path: '/protocols', icon: '📋' },
   { label: 'Articles', path: '/articles', icon: '📰' },
 ];
 

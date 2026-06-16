@@ -10,9 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tiptap/pm": "^3.26.1",
+    "@tiptap/react": "^3.26.1",
+    "@tiptap/starter-kit": "^3.26.1",
     "axios": "^1.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-helmet-async": "^3.0.0",
     "react-router-dom": "^7.17.0",
     "recharts": "^3.8.1"
   },

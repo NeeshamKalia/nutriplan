@@ -56,7 +56,8 @@ export function ProgressTab({ clientId, startWeight }: { clientId: string, start
     Weight: log.weight_kg
   }));
 
-  const currentWeight = logs.length > 0 ? logs[logs.length - 1].weight_kg : startWeight;
+  const logWithWeight = [...logs].reverse().find(log => log.weight_kg !== undefined && log.weight_kg !== null);
+  const currentWeight = logWithWeight ? logWithWeight.weight_kg : startWeight;
   const delta = startWeight && currentWeight ? (currentWeight - startWeight).toFixed(1) : null;
   const deltaText = delta ? (parseFloat(delta) > 0 ? `↑ ${delta} kg` : `↓ ${Math.abs(parseFloat(delta))} kg`) : 'No change';
 

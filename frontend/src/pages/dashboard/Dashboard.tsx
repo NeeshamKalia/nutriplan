@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
-import { dashboardApi, DashboardOverview } from '../../api/dashboard';
+import { dashboardApi, type DashboardOverview } from '../../api/dashboard';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 function formatActivity(type: string) {
@@ -116,7 +116,7 @@ export function Dashboard() {
                     <p className="font-medium">{client.name}</p>
                     {client.last_interaction && (
                       <p className="text-muted text-sm">
-                        Last log: {client.last_interaction}
+                        Last log: {formatTimestamp(client.last_interaction)}
                       </p>
                     )}
                   </div>

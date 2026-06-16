@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { foodsApi } from '../../api/foods';
-import { FoodItem } from '../../types/plan';
+import type { FoodItem } from '../../types/plan';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { Button } from '../ui/Button';
 
 import './FoodSearchModal.css';
 
@@ -16,7 +15,7 @@ export const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClos
   const [query, setQuery] = useState('');
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isOpen) {

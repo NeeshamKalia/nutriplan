@@ -7,8 +7,9 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { plansApi } from '../../api/plans';
+import { protocolsApi } from '../../api/protocols';
 import type { MealPlan } from '../../types/plan';
-import { AIGenerateModal } from '../../components/plans/AIGenerateModal';
+import { AIGenerateModal, type ProtocolOption } from '../../components/plans/AIGenerateModal';
 import { ProgressTab } from '../../components/clients/ProgressTab';
 import { AdherenceTab } from '../../components/clients/AdherenceTab';
 
@@ -21,14 +22,22 @@ export function ClientDetailPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'plans' | 'progress' | 'adherence'>('profile');
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [protocolOptions, setProtocolOptions] = useState<ProtocolOption[]>([]);
 
-  const handleGeneratePlan = async (instructions: string) => {
+  useEffect(() => {
+    protocolsApi.list().then((data) => {
+      setProtocolOptions(data.protocols.map((p) => ({ id: p.id, name: p.name })));
+    }).catch(() => setProtocolOptions([]));
+  }, []);
+
+  const handleGeneratePlan = async (instructions: string, protocolId?: string) => {
     try {
       setIsGenerating(true);
       const startOfWeek = new Date();
       const newPlan = await plansApi.generatePlan(id!, {
         week_start_date: startOfWeek.toISOString().split('T')[0],
         custom_instructions: instructions || undefined,
+        protocol_id: protocolId,
       });
       setIsGenerating(false);
       setIsAIModalOpen(false);
@@ -49,8 +58,8 @@ export function ClientDetailPage() {
         days: Array.from({ length: 7 }).map((_, i) => ({
           day_number: i + 1,
           day_label: `Day ${i + 1}`,
-          items: []
-        }))
+          items: [],
+        })) as any
       });
       navigate(`/plans/${newPlan.id}`);
     } catch (err) {
@@ -204,7 +213,7 @@ export function ClientDetailPage() {
       )}
 
       {activeTab === 'progress' && (
-        <ProgressTab clientId={id!} startWeight={client.weight_kg} />
+        <ProgressTab clientId={id!} startWeight={client.weight_kg ?? undefined} />
       )}
 
       {activeTab === 'adherence' && (
@@ -216,6 +225,7 @@ export function ClientDetailPage() {
         onClose={() => setIsAIModalOpen(false)}
         onGenerate={handleGeneratePlan}
         isLoading={isGenerating}
+        protocols={protocolOptions}
       />
     </div>
   );

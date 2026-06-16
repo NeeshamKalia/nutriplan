@@ -1,5 +1,5 @@
 import api from './client';
-import { MealPlan } from '../types/plan';
+import type { MealPlan } from '../types/plan';
 
 export const plansApi = {
   getPlansByClient: async (clientId: string) => {
@@ -27,8 +27,19 @@ export const plansApi = {
     return response.data;
   },
 
-  generatePlan: async (clientId: string, data: { week_start_date: string; custom_instructions?: string }) => {
+  generatePlan: async (
+    clientId: string,
+    data: { week_start_date: string; custom_instructions?: string; protocol_id?: string }
+  ) => {
     const response = await api.post<MealPlan>(`/clients/${clientId}/plans/generate`, data);
+    return response.data;
+  },
+
+  regeneratePlan: async (
+    planId: string,
+    data: { custom_instructions?: string; week_start_date?: string; protocol_id?: string }
+  ) => {
+    const response = await api.post<MealPlan>(`/plans/${planId}/regenerate`, data);
     return response.data;
   },
 };

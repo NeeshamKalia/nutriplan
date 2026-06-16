@@ -1,5 +1,5 @@
 import api from './client';
-import { FoodItem } from '../types/plan';
+import type { FoodItem } from '../types/plan';
 
 export const foodsApi = {
   searchFoods: async (params?: { q?: string; category?: string; is_vegetarian?: boolean }) => {

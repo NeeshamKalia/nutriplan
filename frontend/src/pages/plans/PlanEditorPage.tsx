@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { plansApi } from '../../api/plans';
-import { MealPlan, MealPlanDay, FoodItem, MealPlanItem } from '../../types/plan';
+import { protocolsApi } from '../../api/protocols';
+import type { MealPlan, FoodItem, MealPlanItem } from '../../types/plan';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { FoodSearchModal } from '../../components/plans/FoodSearchModal';
-import { AIGenerateModal } from '../../components/plans/AIGenerateModal';
+import { AIGenerateModal, type ProtocolOption } from '../../components/plans/AIGenerateModal';
 
 import './PlanEditorPage.css';
 
@@ -23,10 +24,18 @@ export const PlanEditorPage: React.FC = () => {
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isSavingProtocol, setIsSavingProtocol] = useState(false);
+  const [protocolOptions, setProtocolOptions] = useState<ProtocolOption[]>([]);
 
   useEffect(() => {
     loadPlan();
   }, [id]);
+
+  useEffect(() => {
+    protocolsApi.list().then((data) => {
+      setProtocolOptions(data.protocols.map((p) => ({ id: p.id, name: p.name })));
+    }).catch(() => setProtocolOptions([]));
+  }, []);
 
   const loadPlan = async () => {
     if (!id) return;
@@ -65,22 +74,53 @@ export const PlanEditorPage: React.FC = () => {
     setIsSearchOpen(true);
   };
 
-  const handleGeneratePlan = async (instructions: string) => {
+  const handleGeneratePlan = async (instructions: string, protocolId?: string) => {
     if (!plan) return;
     try {
       setIsGenerating(true);
-      const startOfWeek = new Date(); // or keep the same as current plan
-      const newPlan = await plansApi.generatePlan(plan.client_id, {
-        week_start_date: plan.week_start_date,
+      const hasContent = plan.days.some((d) => d.items.length > 0);
+      const payload = {
         custom_instructions: instructions || undefined,
-      });
+        protocol_id: protocolId,
+      };
+
+      const updatedPlan = hasContent
+        ? await plansApi.regeneratePlan(plan.id, payload)
+        : await plansApi.generatePlan(plan.client_id, {
+            week_start_date: plan.week_start_date,
+            ...payload,
+          });
+
       setIsGenerating(false);
       setIsAIModalOpen(false);
-      navigate(`/plans/${newPlan.id}`, { replace: true });
+      if (hasContent) {
+        setPlan(updatedPlan);
+      } else {
+        navigate(`/plans/${updatedPlan.id}`, { replace: true });
+      }
     } catch (err) {
       console.error(err);
       alert('Failed to regenerate plan.');
       setIsGenerating(false);
+    }
+  };
+
+  const handleSaveAsProtocol = async () => {
+    if (!plan) return;
+    const name = window.prompt('Protocol name:', plan.title || 'My Protocol');
+    if (!name?.trim()) return;
+
+    try {
+      setIsSavingProtocol(true);
+      await protocolsApi.savePlanAsProtocol(plan.id, { name: name.trim() });
+      const data = await protocolsApi.list();
+      setProtocolOptions(data.protocols.map((p) => ({ id: p.id, name: p.name })));
+      alert('Protocol saved. You can reuse it when generating plans.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save protocol.');
+    } finally {
+      setIsSavingProtocol(false);
     }
   };
 
@@ -163,6 +203,13 @@ export const PlanEditorPage: React.FC = () => {
           </div>
         </div>
         <div className="header-actions">
+          <button
+            className="btn-secondary"
+            onClick={handleSaveAsProtocol}
+            disabled={isSavingProtocol || plan.days.every((d) => d.items.length === 0)}
+          >
+            {isSavingProtocol ? 'Saving...' : 'Save as Protocol'}
+          </button>
           <button className="btn-secondary" onClick={() => setIsAIModalOpen(true)}>
             {plan.status === 'draft' && plan.days.some(d => d.items.length > 0) ? 'Regenerate with AI' : 'AI Generate'}
           </button>
@@ -298,6 +345,7 @@ export const PlanEditorPage: React.FC = () => {
         onClose={() => setIsAIModalOpen(false)}
         onGenerate={handleGeneratePlan}
         isLoading={isGenerating}
+        protocols={protocolOptions}
       />
     </div>
   );

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { adherenceApi, type ClientAdherence } from '../../api/adherence';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
