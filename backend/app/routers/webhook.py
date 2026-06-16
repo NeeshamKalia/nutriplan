@@ -3,7 +3,6 @@ import hmac
 from fastapi import APIRouter, Request, Response, BackgroundTasks, HTTPException, Query
 from app.config import settings
 from app.core.logger import get_logger
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import async_session
 from app.models.whatsapp_message import WhatsAppMessage
 from app.models.client import Client
@@ -117,7 +116,11 @@ async def process_whatsapp_message(payload: dict):
                         # Handle commands
                         if intent == 'command_help':
                             from app.whatsapp.handlers.help import handle_help
-                            await handle_help(from_number)
+                            await handle_help(
+                                from_number,
+                                db=db,
+                                dietitian_id=dietitian.id if dietitian else None,
+                            )
                         elif intent == 'command_today':
                             from app.whatsapp.handlers.today import handle_today
                             await handle_today(db, client, from_number)
@@ -136,9 +139,18 @@ async def process_whatsapp_message(payload: dict):
                         elif intent == 'deviation':
                             from app.whatsapp.handlers.deviation import handle_deviation
                             await handle_deviation(db, client, from_number, body)
+                        elif intent == 'question':
+                            from app.whatsapp.handlers.question import handle_question
+                            await handle_question(db, client, dietitian, from_number, body)
                         elif intent == 'unknown' and msg_type == 'text':
                             from app.services.whatsapp_service import whatsapp_service
-                            await whatsapp_service.send_text_message(from_number, "I didn't understand. Send HELP for commands!")
+                            await whatsapp_service.send_text_message(
+                                from_number,
+                                "I didn't understand. Send HELP for commands!",
+                                db=db,
+                                client_id=client.id if client else None,
+                                dietitian_id=dietitian.id if dietitian else None,
+                            )
                         
         except Exception as e:
             logger.error(f"Error processing webhook: {str(e)}")

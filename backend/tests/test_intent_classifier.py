@@ -1,4 +1,3 @@
-import pytest
 from app.whatsapp.intent_classifier import classify_intent
 
 def test_classify_intent():
@@ -13,4 +12,5 @@ def test_classify_intent():
     assert classify_intent("I don't have paneer") == "command_swap"
     assert classify_intent("Had pizza for dinner") == "deviation"
     assert classify_intent("Skipped lunch today") == "deviation"
+    assert classify_intent("What helps with PCOS?") == "question"
     assert classify_intent("hello how are you") == "unknown"
