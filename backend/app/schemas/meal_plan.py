@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -114,3 +114,15 @@ class MealPlanListCollection(BaseModel):
 class GeneratePlanRequest(BaseModel):
     week_start_date: date
     custom_instructions: str | None = None
+    protocol_id: UUID | None = None
+
+
+class RegeneratePlanRequest(BaseModel):
+    custom_instructions: str | None = None
+    week_start_date: date | None = None
+    protocol_id: UUID | None = None
+
+
+class MealPlanValidationsList(BaseModel):
+    validations: List[MealPlanValidationResponse]
+    total: int

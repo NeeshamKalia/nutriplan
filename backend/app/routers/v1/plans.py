@@ -16,9 +16,12 @@ from app.schemas.meal_plan import (
     MealPlanListCollection,
     MealPlanResponse,
     MealPlanUpdate,
+    MealPlanValidationsList,
     GeneratePlanRequest,
+    RegeneratePlanRequest,
 )
-from app.services import plan_service
+from app.schemas.protocol import ProtocolResponse, SavePlanAsProtocolRequest
+from app.services import plan_service, protocol_service
 
 router = APIRouter(tags=["plans"])
 
@@ -81,6 +84,30 @@ async def approve_plan(
     return await plan_service.approve_plan(db, dietitian.id, plan_id)
 
 
+@plans_router.get("/{plan_id}/validations", response_model=MealPlanValidationsList)
+async def get_plan_validations(
+    plan_id: uuid.UUID,
+    dietitian: Dietitian = Depends(get_current_dietitian),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get AI validation results for a meal plan."""
+    validations = await plan_service.get_plan_validations(
+        db, dietitian.id, plan_id
+    )
+    return {"validations": validations, "total": len(validations)}
+
+
+@plans_router.post("/{plan_id}/regenerate", response_model=MealPlanResponse)
+async def regenerate_plan(
+    plan_id: uuid.UUID,
+    data: RegeneratePlanRequest,
+    dietitian: Dietitian = Depends(get_current_dietitian),
+    db: AsyncSession = Depends(get_db),
+):
+    """Regenerate a draft plan with AI using optional new instructions."""
+    return await plan_service.regenerate_plan(db, dietitian.id, plan_id, data)
+
+
 @clients_router.post("/generate", response_model=MealPlanResponse, status_code=201)
 async def generate_plan(
     client_id: uuid.UUID,
@@ -90,3 +117,16 @@ async def generate_plan(
 ):
     """Generate a new meal plan using AI."""
     return await plan_service.generate_plan_for_client(db, dietitian.id, client_id, data)
+
+
+@plans_router.post("/{plan_id}/save-as-protocol", response_model=ProtocolResponse, status_code=201)
+async def save_plan_as_protocol(
+    plan_id: uuid.UUID,
+    data: SavePlanAsProtocolRequest,
+    dietitian: Dietitian = Depends(get_current_dietitian),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save an existing meal plan as a reusable protocol template."""
+    return await protocol_service.save_plan_as_protocol(
+        db, dietitian.id, plan_id, data
+    )
