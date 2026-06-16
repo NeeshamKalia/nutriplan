@@ -49,8 +49,9 @@
                     │      FastAPI Server      │
                     │                          │
                     │  /api/v1/*  (REST)       │
+                    │  /api/v1/public/* (JSON) │
                     │  /webhook/whatsapp       │
-                    │  /p/{slug}  (public)     │
+                    │  /p/{slug}/intake (alias) │
                     ├──────────────────────────┤
                     │     Service Layer         │
                     │  ┌──────────────────────┐│
@@ -746,16 +747,39 @@ GET    /webhook/whatsapp             # Verification challenge (Meta sends this o
 POST   /webhook/whatsapp             # Receive incoming messages & status updates
 ```
 
-### 4.8 Public / Landing Page
+### 4.9 Public / Landing Page
+
+Public pages are a **React SPA** (Vite). User-facing URLs live on the frontend; the backend exposes JSON data APIs under `/api/v1/public/*`. This split keeps SEO-friendly slugs in the browser while reusing the versioned API layer for data.
+
+#### Frontend routes (React Router — no auth)
 
 ```
-GET    /p/:slug                      # Dietitian's landing page (SSR HTML)
-GET    /p/:slug/articles             # Public article list
-GET    /p/:slug/articles/:article_slug  # Public article detail
-POST   /p/:slug/intake               # New client intake form submission
+GET    /p/:slug                         # Dietitian landing page (client-rendered)
+GET    /p/:slug/:articleSlug            # Published article detail (client-rendered)
+GET    /d/:slug                         # Legacy redirect → /p/:slug
+GET    /d/:slug/:articleSlug            # Legacy redirect → /p/:slug/:articleSlug
 ```
 
-### 4.9 Dashboard Stats
+The landing page fetches profile and article data from the JSON endpoints below. Intake submission uses the versioned API path (a spec-aligned alias also exists on the backend).
+
+#### Public data APIs (no auth, mounted at `/api/v1/public`)
+
+```
+GET    /api/v1/public/dietitians/:slug
+GET    /api/v1/public/dietitians/:slug/articles
+GET    /api/v1/public/dietitians/:slug/articles/:article_slug
+POST   /api/v1/public/dietitians/:slug/intake    # New client intake form
+```
+
+#### Spec-aligned alias (non-versioned, optional)
+
+```
+POST   /p/:slug/intake                  # Same handler as intake above; for external integrations
+```
+
+**Implementation:** `frontend/src/pages/public/*`, `backend/app/routers/public.py`, `backend/app/routers/p_pages.py`
+
+### 4.10 Dashboard Stats
 
 ```
 GET    /api/v1/dashboard             # Overview stats for dietitian
@@ -1211,7 +1235,8 @@ nutriplan/
 │   │   │   │   ├── foods.py
 │   │   │   │   └── dashboard.py
 │   │   │   ├── webhook.py           # WhatsApp webhook handler (not versioned)
-│   │   │   └── public.py            # Landing page routes (not versioned)
+│   │   │   ├── public.py            # Public JSON APIs (/api/v1/public/*)
+│   │   │   └── p_pages.py           # Spec-aligned /p/* alias routes (not versioned)
 │   │   ├── services/                # Business logic
 │   │   │   ├── __init__.py
 │   │   │   ├── auth_service.py

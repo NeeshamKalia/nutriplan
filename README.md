@@ -12,9 +12,14 @@ AI-powered practice OS for Indian nutritionists. Dietitians manage clients via a
 
 ## Live Demo
 
-- **Dashboard:** [https://nutriplan.vercel.app](https://nutriplan.vercel.app) *(Pending deployment)*
-- **API URL:** [https://nutriplan-api.up.railway.app](https://nutriplan-api.up.railway.app) *(Pending deployment)*
-- **WhatsApp Webhook:** Set up with Meta Business Manager to point to `/webhook/whatsapp`
+CI/CD deploys to Vercel (frontend) and Railway (backend) on push to `main`. Configure these GitHub Actions secrets to enable deployment:
+
+- `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
+- `RAILWAY_TOKEN`
+
+- **Dashboard:** [https://nutriplan.vercel.app](https://nutriplan.vercel.app)
+- **API:** [https://nutriplan-api.up.railway.app](https://nutriplan-api.up.railway.app)
+- **WhatsApp Webhook:** Point Meta Business Manager to `/webhook/whatsapp` on the API URL
 
 ## Architecture
 
@@ -26,12 +31,13 @@ AI-powered practice OS for Indian nutritionists. Dietitians manage clients via a
 ## Quick Start
 
 ```bash
-# Start PostgreSQL + Backend
+# Start PostgreSQL + Backend + Frontend
 docker-compose up -d
 
-# Backend: http://localhost:8000
+# Backend:  http://localhost:8000
+# Frontend: http://localhost:5173
 # API Docs: http://localhost:8000/docs
-# Health Check: http://localhost:8000/health
+# Health:   http://localhost:8000/health
 ```
 
 ### Local Development (without Docker)

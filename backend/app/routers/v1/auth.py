@@ -8,10 +8,12 @@ from app.dependencies import get_current_dietitian
 from app.models.dietitian import Dietitian
 from app.schemas.auth import (
     AuthResponse,
+    DietitianProfileUpdate,
     DietitianResponse,
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
+    WhatsAppSetupRequest,
 )
 from app.services import auth_service
 
@@ -45,13 +47,24 @@ async def logout(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=DietitianResponse)
 async def get_me(dietitian: Dietitian = Depends(get_current_dietitian)):
     """Get the current authenticated dietitian's profile."""
-    return DietitianResponse(
-        id=str(dietitian.id),
-        email=dietitian.email,
-        full_name=dietitian.full_name,
-        slug=dietitian.slug,
-        phone=dietitian.phone,
-        specializations=dietitian.specializations,
-        practice_name=dietitian.practice_name,
-        has_whatsapp_setup=bool(dietitian.whatsapp_phone_number_id),
-    )
+    return auth_service._build_dietitian_response(dietitian)
+
+
+@router.put("/me", response_model=DietitianResponse)
+async def update_me(
+    data: DietitianProfileUpdate,
+    dietitian: Dietitian = Depends(get_current_dietitian),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the current dietitian's practice profile."""
+    return await auth_service.update_profile(db, dietitian, data)
+
+
+@router.put("/me/whatsapp", response_model=DietitianResponse)
+async def setup_whatsapp(
+    data: WhatsAppSetupRequest,
+    dietitian: Dietitian = Depends(get_current_dietitian),
+    db: AsyncSession = Depends(get_db),
+):
+    """Configure WhatsApp Business API credentials for this dietitian."""
+    return await auth_service.setup_whatsapp(db, dietitian, data)

@@ -3,7 +3,6 @@ import hmac
 import hashlib
 import json
 from httpx import AsyncClient
-from app.main import app
 from app.config import settings
 
 @pytest.mark.asyncio

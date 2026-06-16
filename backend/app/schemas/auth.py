@@ -51,11 +51,34 @@ class DietitianResponse(BaseModel):
     full_name: str
     slug: str
     phone: str | None = None
+    photo_url: str | None = None
+    bio: str | None = None
     specializations: list[str] | None = None
+    qualifications: str | None = None
     practice_name: str | None = None
     has_whatsapp_setup: bool = False
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DietitianProfileUpdate(BaseModel):
+    """Update dietitian practice profile."""
+
+    full_name: str | None = Field(None, min_length=2, max_length=255)
+    phone: str | None = Field(None, max_length=20)
+    photo_url: str | None = None
+    bio: str | None = Field(None, max_length=5000)
+    specializations: list[str] | None = None
+    qualifications: str | None = Field(None, max_length=1000)
+    practice_name: str | None = Field(None, max_length=255)
+
+
+class WhatsAppSetupRequest(BaseModel):
+    """Configure per-dietitian WhatsApp Business credentials."""
+
+    whatsapp_phone_number_id: str = Field(..., min_length=1, max_length=50)
+    whatsapp_business_account_id: str | None = Field(None, max_length=50)
+    whatsapp_access_token: str = Field(..., min_length=1)
 
 
 class AuthResponse(BaseModel):

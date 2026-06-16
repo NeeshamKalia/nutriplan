@@ -7,7 +7,6 @@ import sys
 # Add the project root to sys.path if not running from root
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session
 from app.models.food_item import FoodItem

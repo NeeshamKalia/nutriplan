@@ -184,6 +184,61 @@ async def test_refresh_token_reuse_detected(client):
 
 
 @pytest.mark.asyncio
+async def test_update_profile(client):
+    """PUT /me updates practice profile fields."""
+    reg = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "neha@nutriplan.in",
+            "password": "password123",
+            "full_name": "Dr. Neha Sharma",
+        },
+    )
+    token = reg.json()["access_token"]
+    response = await client.put(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "practice_name": "Neha Nutrition Clinic",
+            "bio": "PCOS and weight management specialist.",
+            "specializations": ["PCOS", "Weight Loss"],
+            "phone": "+919876543210",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["practice_name"] == "Neha Nutrition Clinic"
+    assert data["bio"] == "PCOS and weight management specialist."
+    assert data["specializations"] == ["PCOS", "Weight Loss"]
+    assert data["phone"] == "+919876543210"
+
+
+@pytest.mark.asyncio
+async def test_setup_whatsapp(client):
+    """PUT /me/whatsapp stores WhatsApp Business credentials."""
+    reg = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "neha@nutriplan.in",
+            "password": "password123",
+            "full_name": "Dr. Neha Sharma",
+        },
+    )
+    token = reg.json()["access_token"]
+    response = await client.put(
+        "/api/v1/auth/me/whatsapp",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "whatsapp_phone_number_id": "123456789",
+            "whatsapp_access_token": "test-token",
+            "whatsapp_business_account_id": "waba-1",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["has_whatsapp_setup"] is True
+
+
+@pytest.mark.asyncio
 async def test_logout(client):
     """Logout revokes refresh token -> subsequent refresh fails."""
     reg = await client.post(

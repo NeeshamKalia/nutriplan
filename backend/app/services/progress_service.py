@@ -90,7 +90,8 @@ async def update_progress_log(
         )
 
     for key, value in data.model_dump(exclude_unset=True).items():
-        setattr(progress_log, key, value)
+        if value is not None:
+            setattr(progress_log, key, value)
 
     await db.commit()
     await db.refresh(progress_log)

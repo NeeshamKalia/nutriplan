@@ -23,6 +23,9 @@ async def handle_done(db: AsyncSession, client: Client, to_number: str) -> None:
         await whatsapp_service.send_text_message(
             to_number,
             "You don't have an active meal plan yet.",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
         )
         return
 
@@ -35,6 +38,9 @@ async def handle_done(db: AsyncSession, client: Client, to_number: str) -> None:
         await whatsapp_service.send_text_message(
             to_number,
             f"You've already logged {label} today ({existing.status}). Send HELP for commands.",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
         )
         return
 
@@ -57,10 +63,16 @@ async def handle_done(db: AsyncSession, client: Client, to_number: str) -> None:
         await whatsapp_service.send_text_message(
             to_number,
             "Amazing! All meals completed today! 🎉",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
         )
         return
 
     await whatsapp_service.send_text_message(
         to_number,
         f"✅ {label} logged! Keep it up 💪",
+        db=db,
+        client_id=client.id,
+        dietitian_id=client.dietitian_id,
     )

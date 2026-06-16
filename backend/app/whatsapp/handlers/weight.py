@@ -18,15 +18,24 @@ async def handle_weight(
     """Handle weight logging via WhatsApp."""
 
     # Extract weight from message
-    match = re.search(r"(\d+(\.\d+)?)", message_body)
-    if not match:
+    matches = re.findall(r"(\d+(?:\.\d+)?)\s*(kg|k|lbs|lb)?", message_body, re.IGNORECASE)
+    if not matches:
         await whatsapp_service.send_text_message(
             to_number,
             "I couldn't understand the weight. Please send it like 'weight 70.5' or '70.5 kg'.",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
         )
         return
 
-    weight_val = float(match.group(1))
+    weight_str, unit = matches[-1]
+    weight_val = float(weight_str)
+    
+    unit = unit.lower() if unit else ""
+    if unit in ("lbs", "lb"):
+        weight_val = weight_val * 0.453592
+        weight_val = round(weight_val, 2)
 
     try:
         data = ProgressLogCreate(
@@ -39,11 +48,18 @@ async def handle_weight(
         await create_or_update_progress_log(db, client.dietitian_id, client.id, data)
 
         await whatsapp_service.send_text_message(
-            to_number, f"📊 Weight logged: {weight_val} kg. Keep going 💪"
+            to_number,
+            f"📊 Weight logged: {weight_val} kg. Keep going 💪",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
         )
     except Exception as e:
         logger.error(f"Failed to log weight from whatsapp: {e}")
         await whatsapp_service.send_text_message(
             to_number,
             "Sorry, there was an issue logging your weight. Please try again later.",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
         )

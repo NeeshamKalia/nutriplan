@@ -240,7 +240,13 @@ async def test_handle_swap_sends_alternatives(db_session):
     suggest_mock.assert_awaited_once()
     assert suggest_mock.await_args.args[0] == client
     assert suggest_mock.await_args.args[1] == "paneer"
-    send_mock.assert_awaited_once_with("919999999999", "Try tofu instead.")
+    send_mock.assert_awaited_once_with(
+        "919999999999",
+        "Try tofu instead.",
+        db=db,
+        client_id=client.id,
+        dietitian_id=client.dietitian_id,
+    )
 
 
 def test_meal_type_label():

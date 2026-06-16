@@ -50,6 +50,9 @@ async def handle_deviation(
         await whatsapp_service.send_text_message(
             to_number,
             "You don't have an active meal plan yet.",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
         )
         return
 
@@ -63,6 +66,9 @@ async def handle_deviation(
         await whatsapp_service.send_text_message(
             to_number,
             f"Already noted for {label} today. Your dietitian can see the update.",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
         )
         return
 
@@ -84,4 +90,10 @@ async def handle_deviation(
     else:
         reply = f"Got it — {label} deviation logged. Thanks for being honest! Your dietitian will see this. 👍"
 
-    await whatsapp_service.send_text_message(to_number, reply)
+    await whatsapp_service.send_text_message(
+        to_number,
+        reply,
+        db=db,
+        client_id=client.id,
+        dietitian_id=client.dietitian_id,
+    )

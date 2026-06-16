@@ -18,9 +18,11 @@ from app.models.dietitian import Dietitian
 from app.models.refresh_token import RefreshToken
 from app.schemas.auth import (
     AuthResponse,
+    DietitianProfileUpdate,
     DietitianResponse,
     LoginRequest,
     RegisterRequest,
+    WhatsAppSetupRequest,
 )
 from app.utils.security import (
     create_access_token_for_dietitian,
@@ -42,14 +44,17 @@ def _generate_slug(full_name: str) -> str:
     return slug
 
 
-async def _ensure_unique_slug(db: AsyncSession, base_slug: str) -> str:
+async def _ensure_unique_slug(
+    db: AsyncSession, base_slug: str, exclude_id=None
+) -> str:
     """Ensure slug is unique, appending number if needed."""
     slug = base_slug
     counter = 1
     while True:
-        result = await db.execute(
-            select(Dietitian.id).where(Dietitian.slug == slug)
-        )
+        stmt = select(Dietitian.id).where(Dietitian.slug == slug)
+        if exclude_id is not None:
+            stmt = stmt.where(Dietitian.id != exclude_id)
+        result = await db.execute(stmt)
         if not result.scalar_one_or_none():
             return slug
         slug = f"{base_slug}-{counter}"
@@ -71,7 +76,10 @@ def _build_dietitian_response(dietitian: Dietitian) -> DietitianResponse:
         full_name=dietitian.full_name,
         slug=dietitian.slug,
         phone=dietitian.phone,
+        photo_url=dietitian.photo_url,
+        bio=dietitian.bio,
         specializations=specs,
+        qualifications=dietitian.qualifications,
         practice_name=dietitian.practice_name,
         has_whatsapp_setup=bool(dietitian.whatsapp_phone_number_id),
     )
@@ -317,3 +325,45 @@ async def logout(db: AsyncSession, raw_refresh_token: str) -> None:
             "Dietitian logged out",
             extra={"dietitian_id": str(token_record.dietitian_id)},
         )
+
+
+async def update_profile(
+    db: AsyncSession, dietitian: Dietitian, data: DietitianProfileUpdate
+) -> DietitianResponse:
+    """Update the authenticated dietitian's practice profile."""
+    updates = data.model_dump(exclude_unset=True)
+
+    if "full_name" in updates and updates["full_name"] != dietitian.full_name:
+        dietitian.full_name = updates["full_name"]
+        dietitian.slug = await _ensure_unique_slug(
+            db, _generate_slug(updates["full_name"]), exclude_id=dietitian.id
+        )
+
+    for field in ("phone", "photo_url", "bio", "qualifications", "practice_name"):
+        if field in updates:
+            setattr(dietitian, field, updates[field])
+
+    if "specializations" in updates:
+        dietitian.specializations = updates["specializations"]
+
+    await db.commit()
+    await db.refresh(dietitian)
+
+    logger.info("Profile updated", extra={"dietitian_id": str(dietitian.id)})
+    return _build_dietitian_response(dietitian)
+
+
+async def setup_whatsapp(
+    db: AsyncSession, dietitian: Dietitian, data: WhatsAppSetupRequest
+) -> DietitianResponse:
+    """Store per-dietitian WhatsApp Business API credentials."""
+    dietitian.whatsapp_phone_number_id = data.whatsapp_phone_number_id
+    dietitian.whatsapp_access_token = data.whatsapp_access_token
+    if data.whatsapp_business_account_id:
+        dietitian.whatsapp_business_account_id = data.whatsapp_business_account_id
+
+    await db.commit()
+    await db.refresh(dietitian)
+
+    logger.info("WhatsApp setup saved", extra={"dietitian_id": str(dietitian.id)})
+    return _build_dietitian_response(dietitian)

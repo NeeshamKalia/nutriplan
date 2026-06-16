@@ -50,6 +50,9 @@ async def handle_swap(
         await whatsapp_service.send_text_message(
             to_number,
             "Which food do you want to swap? Try: *SWAP paneer*",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
         )
         return
 
@@ -66,4 +69,10 @@ async def handle_swap(
             )
 
     reply = await suggest_alternatives(client, food_name, meal_context)
-    await whatsapp_service.send_text_message(to_number, reply)
+    await whatsapp_service.send_text_message(
+        to_number,
+        reply,
+        db=db,
+        client_id=client.id,
+        dietitian_id=client.dietitian_id,
+    )
