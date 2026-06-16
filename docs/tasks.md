@@ -10,9 +10,9 @@
 **⚠️ AGENTS: Update this section after every task completion.**
 
 ```
-Current Phase:        7 — Progress Tracking (MVP COMPLETE)
-Last Completed Task:  TASK-702
-Next Task:            TASK-801
+Current Phase:        10 — LangGraph + Polish (complete)
+Last Completed Task:  TASK-1003
+Next Task:            (Phase 10 complete — deploy / final polish)
 In Progress:          (none)
 Blockers:             (none)
 Deployed URL:         (not yet)
@@ -40,9 +40,17 @@ _(Agents: add completed items here as you finish them)_
 - ✅ **TASK-602** — Adherence Dashboard (2026-06-15)
 - ✅ **TASK-701** — Progress Tracking API + UI (2026-06-15)
 - ✅ **TASK-702** — Docker + CI/CD + Deploy (2026-06-15)
+- ✅ **TASK-801** — Articles CRUD + Landing Page (2026-06-15)
+- ✅ **TASK-802** — WhatsApp article broadcast (2026-06-15)
+- ✅ **Phase 8 audit fixes** — Deploy, food DB, landing API, AI contracts, ops polish (2026-06-15)
+- ✅ **TASK-901** — Migrate plan generation to LangChain + LangSmith config (2026-06-15)
+- ✅ **TASK-902** — RAG pipeline: article embeddings + WhatsApp Q&A (2026-06-15)
+- ✅ **TASK-1001** — LangGraph multi-step plan generation workflow (2026-06-15)
+- ✅ **TASK-1002** — Protocol templates CRUD + save from plan + generate from protocol (2026-06-15)
+- ✅ **TASK-1003** — Redis caching + LLM-as-judge evaluation + daily WhatsApp reminders (2026-06-16)
 
 ### What's Next
-1. **TASK-801** — Articles CRUD API + editor UI + landing page
+1. Deploy MVP and final polish (Phase 10 complete)
 
 ---
 
@@ -1183,9 +1191,9 @@ Notes:
 
 ### TASK-303: Frontend — Plan Editor
 
-**Status:** ⬜ TODO  
-**Phase:** 3 | **Priority:** P0 | **Est:** 2.5h  
-**Deps:** TASK-301 ✅, TASK-302 ✅, TASK-203 ✅  
+**Status:** ✅ DONE (2026-06-14)
+**Phase:** 3 | **Priority:** P0 | **Est:** 2.5h
+**Deps:** TASK-301 ✅, TASK-302 ✅, TASK-203 ✅
 **Commit:** `feat: add meal plan editor UI`
 
 #### Goal
@@ -1418,8 +1426,8 @@ Notes:
 
 ### TASK-501: WhatsApp Webhook & Send Service
 
-**Status:** ⬜ TODO  
-**Phase:** 5 | **Priority:** P0 | **Est:** 2h  
+**Status:** ✅ DONE (2026-06-14)
+**Phase:** 5 | **Priority:** P0 | **Est:** 2h
 **Deps:** TASK-102 ✅  
 **Commit:** `feat: add WhatsApp webhook and send service`
 
@@ -1447,8 +1455,8 @@ Notes:
 
 ### TASK-502: Intent Classification & Command Handlers
 
-**Status:** ⬜ TODO  
-**Phase:** 5 | **Priority:** P0 | **Est:** 2h  
+**Status:** ✅ DONE (2026-06-14)
+**Phase:** 5 | **Priority:** P0 | **Est:** 2h
 **Deps:** TASK-501 ✅, TASK-301 ✅  
 **Commit:** `feat: add WhatsApp intent classification and commands`
 
@@ -1472,7 +1480,7 @@ Notes:
 
 ### TASK-503: Plan Delivery via WhatsApp
 
-**Status:** ⬜ TODO  
+**Status:** ✅ DONE (2026-06-14)
 **Phase:** 5 | **Priority:** P0 | **Est:** 1h  
 **Deps:** TASK-501 ✅, TASK-301 ✅  
 **Commit:** `feat: deliver approved plans via WhatsApp`
@@ -1611,17 +1619,97 @@ Notes:
 > These phases are intentionally kept at summary level. When Phase 7 is complete, expand the relevant tasks with full detail like Phases 1-7 above. Don't over-plan what you haven't started.
 
 ### Phase 8: Content & Landing Page
-- TASK-801: Articles CRUD API + editor UI + landing page
-- TASK-802: WhatsApp article broadcast
+
+---
+
+### TASK-801: Articles CRUD + Landing Page
+
+**Status:** ✅ DONE (2026-06-15)  
+**Phase:** 8 | **Priority:** P1 | **Est:** 3h  
+**Deps:** Phase 7 MVP  
+**Commit:** `feat: add articles and branded landing page`
+
+#### Goal
+Allow dietitians to write and publish articles (blog). Present a public-facing branded landing page for the dietitian where clients can view articles and contact them via WhatsApp or form.
+
+#### Steps
+- Create `Article` model (`id`, `dietitian_id`, `title`, `slug`, `content`, `seo_title`, `seo_description`, `is_published`, `created_at`, `updated_at`).
+- Build CRUD API endpoints (`/api/v1/articles` and public endpoints `/api/v1/public/dietitians/{slug}/articles`).
+- Create `ArticleEditor` UI in the React dashboard.
+- Create a public landing page `/{dietitian_slug}` in React.
+- Ensure proper SEO tags using `react-helmet-async`.
+- Write pytest cases for `test_articles.py`.
+
+#### Agent Notes
+```
+Completed by: Cursor Agent
+Date: 2026-06-15
+Notes:
+- Article model already existed from TASK-102. Improved schemas with auto-slug generation.
+- Built article_service.py with full CRUD, slug uniqueness, publish/unpublish.
+- Built v1/articles.py router: POST, GET list (search/status filter), GET detail, PUT, publish, unpublish, DELETE.
+- Built public.py router: GET /public/dietitians/{slug} profile, GET articles list (published only), GET single article by slug.
+- Created ArticlesPage.tsx: list view with search, status filter, publish toggle, delete.
+- Created ArticleEditorPage.tsx: rich editor with title, summary, content, slug, tags, cover image, SEO fields sidebar.
+- Created DietitianLandingPage.tsx: public profile hero + article cards grid.
+- Created PublicArticlePage.tsx: full article view with simple markdown rendering.
+- Added react-helmet-async with OG tags for SEO on both public pages.
+- Created Modal.tsx UI component (was missing, needed by ProgressTab).
+- Fixed pre-existing TS build errors (type-only imports, unused vars, NodeJS namespace).
+- Frontend builds cleanly. 19 test cases in test_articles.py covering CRUD, multi-tenant isolation, public endpoints.
+```
+
+- TASK-802: WhatsApp article broadcast ✅ DONE (2026-06-15)
+
+### TASK-802: WhatsApp Article Broadcast
+
+**Status:** ✅ DONE (2026-06-15)  
+**Phase:** 8 | **Priority:** P2 | **Est:** 1h  
+**Deps:** TASK-801 ✅  
+**Commit:** `feat: add article broadcast via WhatsApp`
+
+#### Agent Notes
+```
+Completed by: Cursor Agent
+Date: 2026-06-15
+Notes:
+- POST /api/v1/articles/:id/broadcast sends article summary + link to all active clients
+- Uses text messages (same pattern as plan delivery); template `new_article` reserved for production Meta approval
+- Rate-limited at ~20 msgs/sec via asyncio.sleep
+- Tracks broadcasted_at and broadcast_count on article
+- FRONTEND_URL config for public article links (/d/{slug}/{articleSlug})
+- Broadcast button on ArticlesPage and ArticleEditorPage (published articles only)
+- 3 new pytest cases; 20 total in test_articles.py passing
+```
 
 ### Phase 9: LangChain + RAG
-- TASK-901: Migrate AI to LangChain, add LangSmith tracing
-- TASK-902: RAG pipeline (article embeddings → WhatsApp Q&A)
+- ✅ TASK-901: Migrate AI to LangChain, add LangSmith tracing (2026-06-15)
+- ✅ TASK-902: RAG pipeline (article embeddings → WhatsApp Q&A) (2026-06-15)
 
 ### Phase 10: LangGraph + Polish
-- TASK-1001: LangGraph multi-step plan workflow
-- TASK-1002: Protocol templates
-- TASK-1003: Redis caching + LLM-as-judge evaluation + daily reminders
+- ✅ TASK-1001: LangGraph multi-step plan workflow (2026-06-15)
+- ✅ TASK-1002: Protocol templates (2026-06-15)
+- ✅ TASK-1003: Redis caching + LLM-as-judge evaluation + daily reminders (2026-06-16)
+
+### TASK-1003: Redis Caching + LLM-as-Judge + Daily Reminders
+
+**Status:** ✅ DONE (2026-06-16)  
+**Phase:** 10 | **Priority:** P2 | **Est:** 1.5h  
+**Deps:** TASK-1002 ✅  
+**Commit:** `feat: add Redis caching and LLM evaluation`
+
+#### Agent Notes
+```
+Completed by: Cursor Agent
+Date: 2026-06-16
+Notes:
+- Redis 7 in docker-compose; async client with in-memory fallback when unavailable
+- cache_service: food search, food fetch for AI gen, client profile lookups (5min TTL)
+- plan_judge: Gemini cheap model scores relevance/practicality/cultural_fit after generation
+- APScheduler: morning plan reminders (7:00 IST), weekly adherence summaries (Sun 9:00 IST)
+- ENABLE_SCHEDULER=false by default; true in docker-compose backend
+- 15 tests across test_cache_service, test_plan_judge, test_reminders
+```
 
 ---
 

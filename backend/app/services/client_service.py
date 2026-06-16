@@ -15,6 +15,7 @@ from app.core.logger import get_logger
 from app.models.audit_log import AuditLog
 from app.models.client import Client
 from app.schemas.client import ClientCreate, ClientListResponse, ClientResponse, ClientUpdate
+from app.services import cache_service
 
 logger = get_logger(__name__)
 
@@ -148,6 +149,11 @@ async def get_client(
     db: AsyncSession, dietitian_id: uuid_mod.UUID, client_id: uuid_mod.UUID
 ) -> ClientResponse:
     """Get a single client by ID, enforcing tenant isolation."""
+    cache_key = cache_service.client_profile_key(str(dietitian_id), str(client_id))
+    cached = await cache_service.cache_get(cache_key)
+    if cached is not None:
+        return ClientResponse(**cached)
+
     result = await db.execute(
         select(Client).where(
             Client.id == client_id,
@@ -160,7 +166,9 @@ async def get_client(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Client not found",
         )
-    return _client_to_response(client)
+    response = _client_to_response(client)
+    await cache_service.cache_set(cache_key, response.model_dump(mode="json"))
+    return response
 
 
 async def update_client(
@@ -209,6 +217,9 @@ async def update_client(
         "Client updated",
         extra={"client_id": str(client_id), "dietitian_id": str(dietitian_id)},
     )
+    await cache_service.cache_delete(
+        cache_service.client_profile_key(str(dietitian_id), str(client_id))
+    )
     return _client_to_response(client)
 
 
@@ -244,6 +255,10 @@ async def archive_client(
 
     await db.commit()
     await db.refresh(client)
+
+    await cache_service.cache_delete(
+        cache_service.client_profile_key(str(dietitian_id), str(client_id))
+    )
 
     logger.info(
         "Client archived",

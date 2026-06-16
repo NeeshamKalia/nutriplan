@@ -14,11 +14,23 @@ async def handle_grocery(db: AsyncSession, client: Client, to_number: str):
         .where(MealPlan.status == 'delivered')
         .order_by(MealPlan.created_at.desc())
     )
-    plan = result.scalar_first()
+    plan = result.scalars().first()
     
     if not plan:
-        await whatsapp_service.send_text_message(to_number, "You don't have an active meal plan yet.")
+        await whatsapp_service.send_text_message(
+            to_number,
+            "You don't have an active meal plan yet.",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
+        )
         return
-        
+
     msg = format_grocery_list(plan)
-    await whatsapp_service.send_text_message(to_number, msg)
+    await whatsapp_service.send_text_message(
+        to_number,
+        msg,
+        db=db,
+        client_id=client.id,
+        dietitian_id=client.dietitian_id,
+    )

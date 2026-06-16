@@ -1,9 +1,14 @@
 """Tests for food items router."""
 
-import pytest
+import json
+from pathlib import Path
 
+import pytest
+import pytest_asyncio
+
+from app.database import get_db
+from app.main import app
 from app.models.food_item import FoodItem
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def _register_and_get_token(client, email="neha@nutriplan.in", name="Dr. Neha Sharma"):
@@ -18,10 +23,7 @@ def _auth_header(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-from app.main import app
-from app.database import get_db
-
-@pytest.fixture
+@pytest_asyncio.fixture
 async def seed_foods(client):
     override_gen = app.dependency_overrides[get_db]()
     db_session = await override_gen.__anext__()
@@ -98,3 +100,85 @@ async def test_list_foods_filter_veg(client, seed_foods):
     assert "Roti" in names
     assert "Paneer" in names
     assert "Chicken" not in names
+
+
+def test_food_seed_meets_mvp_minimum():
+    """TASK-302 requires 200+ curated Indian food items in the seed file."""
+    seed_file = Path(__file__).resolve().parent.parent / "seed" / "food_items.json"
+    data = json.loads(seed_file.read_text(encoding="utf-8"))
+    assert len(data) >= 200
+    names = [item["name"] for item in data]
+    assert len(names) == len(set(names))
+
+    dal_hits = [
+        item for item in data
+        if item.get("category") == "lentil" or "dal" in item["name"].lower()
+    ]
+    assert len(dal_hits) >= 5
+
+
+@pytest.mark.asyncio
+async def test_create_custom_food(client, seed_foods):
+    token = await _register_and_get_token(client)
+    resp = await client.post(
+        "/api/v1/foods",
+        headers=_auth_header(token),
+        json={
+            "name": "Custom Protein Shake",
+            "category": "beverages",
+            "calories_per_100g": 120,
+            "protein_per_100g": 20,
+            "carbs_per_100g": 5,
+            "fat_per_100g": 2,
+            "is_vegetarian": True,
+            "is_vegan": True,
+            "is_gluten_free": True,
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "Custom Protein Shake"
+
+
+@pytest.mark.asyncio
+async def test_update_custom_food(client, seed_foods):
+    token = await _register_and_get_token(client)
+    create = await client.post(
+        "/api/v1/foods",
+        headers=_auth_header(token),
+        json={
+            "name": "My Sabzi",
+            "category": "vegetables",
+            "calories_per_100g": 80,
+            "protein_per_100g": 3,
+            "carbs_per_100g": 10,
+            "fat_per_100g": 4,
+            "is_vegetarian": True,
+            "is_vegan": True,
+            "is_gluten_free": True,
+        },
+    )
+    food_id = create.json()["id"]
+
+    resp = await client.put(
+        f"/api/v1/foods/{food_id}",
+        headers=_auth_header(token),
+        json={"name": "My Updated Sabzi", "calories_per_100g": 90},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "My Updated Sabzi"
+    assert resp.json()["calories_per_100g"] == 90
+
+
+@pytest.mark.asyncio
+async def test_cannot_update_system_food(client, seed_foods):
+    token = await _register_and_get_token(client)
+    list_resp = await client.get("/api/v1/foods?q=Roti", headers=_auth_header(token))
+    roti_id = list_resp.json()["items"][0]["id"]
+
+    resp = await client.put(
+        f"/api/v1/foods/{roti_id}",
+        headers=_auth_header(token),
+        json={"name": "Hacked Roti"},
+    )
+    assert resp.status_code == 404

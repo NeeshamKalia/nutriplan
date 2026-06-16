@@ -15,10 +15,16 @@ async def handle_today(db: AsyncSession, client: Client, to_number: str):
         .where(MealPlan.status == 'delivered')
         .order_by(MealPlan.created_at.desc())
     )
-    plan = result.scalar_first()
+    plan = result.scalars().first()
     
     if not plan:
-        await whatsapp_service.send_text_message(to_number, "You don't have an active meal plan yet.")
+        await whatsapp_service.send_text_message(
+            to_number,
+            "You don't have an active meal plan yet.",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
+        )
         return
         
     # Calculate day number based on week_start_date
@@ -36,11 +42,23 @@ async def handle_today(db: AsyncSession, client: Client, to_number: str):
         .where(MealPlanDay.meal_plan_id == plan.id)
         .where(MealPlanDay.day_number == day_num)
     )
-    day = result.scalar_first()
+    day = result.scalars().first()
     
     if not day:
-        await whatsapp_service.send_text_message(to_number, "Couldn't find today's plan details.")
+        await whatsapp_service.send_text_message(
+            to_number,
+            "Couldn't find today's plan details.",
+            db=db,
+            client_id=client.id,
+            dietitian_id=client.dietitian_id,
+        )
         return
-        
+
     msg = format_daily_plan(day)
-    await whatsapp_service.send_text_message(to_number, msg)
+    await whatsapp_service.send_text_message(
+        to_number,
+        msg,
+        db=db,
+        client_id=client.id,
+        dietitian_id=client.dietitian_id,
+    )
