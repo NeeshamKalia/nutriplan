@@ -1,6 +1,5 @@
 """Tests for AI plan validations."""
 
-from app.models.client import Client
 from app.ai.plan_validator import check_allergens, check_calorie_range, check_dietary_type
 
 def test_check_allergens():

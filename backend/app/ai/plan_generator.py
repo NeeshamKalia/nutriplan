@@ -1,156 +1,208 @@
-"""AI meal plan generation service.
+"""AI meal plan generation service — Phase 9 LangChain implementation.
 
-Phase 4 (MVP): Direct Gemini API calls → structured JSON → rule-based validation.
-Uses google-genai as primary (free tier), OpenAI as paid fallback.
+Uses LangChain ChatGoogleGenerativeAI + PromptTemplate with optional LangSmith tracing.
+The Phase 4 direct-API baseline lives in plan_generator_simple.py for A/B comparison.
 
-Evolution path:
-  Phase 4:  Direct API calls (this file)
-  Phase 9:  LangChain for composability + LangSmith tracing
-  Phase 10: LangGraph for multi-step stateful workflows
+LangChain vs simple (Phase 4):
+  Improved: composable prompt | model | parser chains; LangSmith trace per run;
+            easier to swap models and add retrieval steps in Phase 9 RAG / Phase 10 graph.
+  Complicated: extra dependencies and abstraction layers; token metadata parsing
+               is less direct than google-genai usage_metadata.
 """
 
 import json
+import os
 import time
-from typing import Any
 
-from google import genai
-from google.genai import types
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
+from pydantic import ValidationError
 
 from app.config import settings
 from app.core.logger import get_logger
 from app.models.client import Client
 from app.models.food_item import FoodItem
+from app.ai.plan_generator_simple import (
+    MAX_SCHEMA_RETRIES,
+    _RETRY_HINT,
+    _validate_plan_data,
+)
 from app.ai.prompts.plan_generation import SYSTEM_PROMPT, build_client_context
 
 logger = get_logger(__name__)
 
+_langsmith_configured = False
 
-async def _generate_with_gemini(
-    user_prompt: str,
-) -> tuple[dict, dict]:
-    """Generate meal plan using Google Gemini (primary — free tier).
 
-    Uses the google-genai SDK with async interface and structured JSON output.
-    """
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+def _configure_langsmith() -> None:
+    """Enable LangSmith tracing when API key and flag are set."""
+    global _langsmith_configured
+    if _langsmith_configured:
+        return
+    if settings.LANGCHAIN_TRACING_V2 and settings.LANGCHAIN_API_KEY:
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
+        os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
+        os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT
+        logger.info("LangSmith tracing enabled for project %s", settings.LANGCHAIN_PROJECT)
+    _langsmith_configured = True
 
-    start = time.time()
-    response = await client.aio.models.generate_content(
-        model=settings.GEMINI_MODEL,
-        contents=user_prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
-            response_mime_type="application/json",
-            temperature=0.7,
-            max_output_tokens=4000,
-        ),
+
+def _build_prompt_template() -> ChatPromptTemplate:
+    return ChatPromptTemplate.from_messages(
+        [
+            ("system", SYSTEM_PROMPT),
+            ("human", "{user_prompt}"),
+        ]
     )
-    duration_ms = int((time.time() - start) * 1000)
-
-    plan_data = json.loads(response.text)
-
-    # Gemini usage metadata
-    usage = response.usage_metadata
-    tokens_used = (usage.prompt_token_count or 0) + (usage.candidates_token_count or 0) if usage else 0
-
-    metadata = {
-        "model": settings.GEMINI_MODEL,
-        "provider": "gemini",
-        "tokens_used": tokens_used,
-        "cost_usd": 0.0,  # Gemini Flash free tier
-        "duration_ms": duration_ms,
-    }
-
-    return plan_data, metadata
 
 
-async def _generate_with_openai(
-    user_prompt: str,
-) -> tuple[dict, dict]:
-    """Generate meal plan using OpenAI (fallback — paid).
+def _build_gemini_chain():
+    llm = ChatGoogleGenerativeAI(
+        model=settings.GEMINI_MODEL,
+        google_api_key=settings.GEMINI_API_KEY,
+        temperature=0.7,
+        max_output_tokens=4000,
+    )
+    return _build_prompt_template() | llm.bind(response_mime_type="application/json") | JsonOutputParser()
 
-    Only called when Gemini fails or GEMINI_API_KEY is not configured.
-    """
-    from openai import AsyncOpenAI
 
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-
-    start = time.time()
-    response = await client.chat.completions.create(
+def _build_openai_chain():
+    llm = ChatOpenAI(
         model=settings.OPENAI_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        response_format={"type": "json_object"},
+        api_key=settings.OPENAI_API_KEY,
         temperature=0.7,
         max_tokens=4000,
+        model_kwargs={"response_format": {"type": "json_object"}},
     )
+    return _build_prompt_template() | llm | JsonOutputParser()
+
+
+async def _invoke_chain(chain, user_prompt: str, provider: str, model: str) -> tuple[dict, dict]:
+    start = time.time()
+    result = await chain.ainvoke({"user_prompt": user_prompt})
     duration_ms = int((time.time() - start) * 1000)
 
-    plan_data = json.loads(response.choices[0].message.content)
+    if isinstance(result, dict):
+        metadata = {
+            "model": model,
+            "provider": provider,
+            "tokens_used": 0,
+            "cost_usd": 0.0,
+            "duration_ms": duration_ms,
+            "framework": "langchain",
+        }
+        return result, metadata
 
-    usage = response.usage
-    cost_usd = _estimate_openai_cost(usage)
+    raise TypeError(f"Unexpected chain output type: {type(result)}")
 
-    metadata = {
-        "model": settings.OPENAI_MODEL,
-        "provider": "openai",
-        "tokens_used": usage.total_tokens,
-        "cost_usd": cost_usd,
-        "duration_ms": duration_ms,
-    }
 
+async def _generate_with_gemini(user_prompt: str) -> tuple[dict, dict]:
+    chain = _build_gemini_chain()
+    plan_data, metadata = await _invoke_chain(
+        chain, user_prompt, provider="gemini", model=settings.GEMINI_MODEL
+    )
     return plan_data, metadata
 
 
-def _estimate_openai_cost(usage: Any) -> float:
-    """Rough cost estimation for OpenAI API calls."""
-    prompt_tokens = usage.prompt_tokens
-    completion_tokens = usage.completion_tokens
-    if "mini" in settings.OPENAI_MODEL:
-        return (prompt_tokens * 0.15 / 1_000_000) + (completion_tokens * 0.6 / 1_000_000)
-    return (prompt_tokens * 5.0 / 1_000_000) + (completion_tokens * 15.0 / 1_000_000)
+async def _generate_with_openai(user_prompt: str) -> tuple[dict, dict]:
+    chain = _build_openai_chain()
+    plan_data, metadata = await _invoke_chain(
+        chain, user_prompt, provider="openai", model=settings.OPENAI_MODEL
+    )
+    if metadata["tokens_used"] == 0:
+        metadata["cost_usd"] = 0.0
+    return plan_data, metadata
 
 
-async def generate_meal_plan(
-    client_profile: Client,
-    food_items: list[FoodItem],
-    custom_instructions: str | None = None,
-) -> tuple[dict, dict]:
-    """Generate a 7-day meal plan using AI.
+async def _call_provider(user_prompt: str) -> tuple[dict, dict]:
+    """Call Gemini via LangChain first, fall back to OpenAI."""
+    _configure_langsmith()
 
-    Strategy: Try Gemini first (free tier), fall back to OpenAI if Gemini
-    is unconfigured or fails. This is the Phase 4 MVP approach — direct
-    API calls with structured JSON output and rule-based validation.
-
-    Args:
-        client_profile: The client's health profile.
-        food_items: Available food items for the plan.
-        custom_instructions: Optional dietitian-provided instructions.
-
-    Returns:
-        Tuple of (plan_data dict, metadata dict).
-    """
-    context = build_client_context(client_profile, food_items)
-
-    user_prompt = f"Generate a 7-day meal plan for this client:\n\n{context}"
-    if custom_instructions:
-        user_prompt += f"\n\nAdditional instructions from dietitian: {custom_instructions}"
-
-    # Strategy: Gemini first (free), OpenAI fallback (paid)
     if settings.GEMINI_API_KEY:
         try:
-            logger.info("Generating meal plan with Gemini (primary)")
+            logger.info("Generating meal plan with LangChain + Gemini (primary)")
             return await _generate_with_gemini(user_prompt)
         except Exception as e:
-            logger.warning(f"Gemini generation failed, falling back to OpenAI: {e}")
+            logger.warning(f"LangChain Gemini generation failed, falling back to OpenAI: {e}")
 
     if settings.OPENAI_API_KEY:
-        logger.info("Generating meal plan with OpenAI (fallback)")
+        logger.info("Generating meal plan with LangChain + OpenAI (fallback)")
         return await _generate_with_openai(user_prompt)
 
     raise ValueError(
         "No AI provider configured. Set GEMINI_API_KEY (recommended, free tier) "
         "or OPENAI_API_KEY in your environment."
     )
+
+
+async def generate_meal_plan(
+    client_profile: Client,
+    food_items: list[FoodItem],
+    custom_instructions: str | None = None,
+    protocol_context: str = "",
+    previous_plans_context: str = "",
+) -> tuple[dict, dict]:
+    """Route to the configured plan generator backend."""
+    from app.config import settings
+
+    if settings.PLAN_GENERATOR_BACKEND == "simple":
+        from app.ai.plan_generator_simple import generate_meal_plan as _generate
+
+        return await _generate(client_profile, food_items, custom_instructions)
+
+    if settings.PLAN_GENERATOR_BACKEND == "langgraph":
+        from app.ai.plan_generator_langgraph import generate_meal_plan as _generate
+
+        return await _generate(
+            client_profile,
+            food_items,
+            custom_instructions,
+            protocol_context=protocol_context,
+            previous_plans_context=previous_plans_context,
+        )
+
+    return await _generate_meal_plan_langchain(
+        client_profile,
+        food_items,
+        custom_instructions,
+    )
+
+
+async def _generate_meal_plan_langchain(
+    client_profile: Client,
+    food_items: list[FoodItem],
+    custom_instructions: str | None = None,
+) -> tuple[dict, dict]:
+    """Generate a 7-day meal plan using LangChain with schema validation and retry."""
+    context = build_client_context(client_profile, food_items)
+
+    user_prompt = f"Generate a 7-day meal plan for this client:\n\n{context}"
+    if custom_instructions:
+        user_prompt += (
+            f"\n\nAdditional instructions from dietitian: {custom_instructions}"
+        )
+
+    last_error: Exception | None = None
+
+    for attempt in range(MAX_SCHEMA_RETRIES + 1):
+        prompt = user_prompt if attempt == 0 else user_prompt + _RETRY_HINT
+        try:
+            raw_data, metadata = await _call_provider(prompt)
+            validated = _validate_plan_data(raw_data)
+            if attempt > 0:
+                logger.info("AI plan validated successfully after retry")
+            return validated, metadata
+        except (json.JSONDecodeError, ValidationError, TypeError) as e:
+            last_error = e
+            logger.warning(
+                f"AI plan schema validation failed (attempt {attempt + 1}): {e}"
+            )
+            if attempt >= MAX_SCHEMA_RETRIES:
+                break
+
+    raise ValueError(
+        f"AI returned invalid plan structure after {MAX_SCHEMA_RETRIES + 1} attempts: "
+        f"{last_error}"
+    ) from last_error

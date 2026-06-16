@@ -31,7 +31,7 @@ def build_client_context(client: Client, food_items: list[FoodItem]) -> str:
     dietary_type = client.dietary_type or "any"
     preferences = ", ".join(client.food_preferences) if client.food_preferences else "None"
     
-    context = f"Client Profile:\n"
+    context = "Client Profile:\n"
     context += f"- Name: {client.full_name}\n"
     context += f"- Age: {client.age}, Gender: {client.gender}\n"
     context += f"- Weight: {client.weight_kg} kg, Target Weight: {client.target_weight_kg} kg\n"
