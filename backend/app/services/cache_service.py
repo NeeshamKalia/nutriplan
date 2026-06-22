@@ -1,8 +1,13 @@
-"""Redis-backed response cache with in-memory fallback for tests."""
+"""Redis-backed response cache with bounded in-memory fallback.
+
+SD-002: Memory cache is capped at MAX_MEMORY_CACHE_SIZE entries.
+When the limit is reached, the oldest entries are evicted (LRU-style).
+"""
 
 import hashlib
 import json
 import time
+from collections import OrderedDict
 from typing import Any
 
 from app.config import settings
@@ -11,7 +16,10 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
-_memory_cache: dict[str, tuple[float, str]] = {}
+MAX_MEMORY_CACHE_SIZE = 1000  # SD-002: prevent unbounded growth
+
+# SD-002: OrderedDict for LRU eviction ordering
+_memory_cache: OrderedDict[str, tuple[float, str]] = OrderedDict()
 
 
 def _ttl() -> int:
@@ -54,6 +62,8 @@ async def cache_get(key: str) -> Any | None:
     if time.time() > expires_at:
         _memory_cache.pop(key, None)
         return None
+    # Move to end for LRU ordering
+    _memory_cache.move_to_end(key)
     return json.loads(raw)
 
 
@@ -69,7 +79,12 @@ async def cache_set(key: str, value: Any, ttl: int | None = None) -> None:
         except Exception as exc:
             logger.debug("Redis cache set failed for %s: %s", key, exc)
 
+    # SD-002: Evict oldest entries when cache is full
+    while len(_memory_cache) >= MAX_MEMORY_CACHE_SIZE:
+        _memory_cache.popitem(last=False)  # Remove oldest (FIFO/LRU)
+
     _memory_cache[key] = (time.time() + ttl, raw)
+    _memory_cache.move_to_end(key)  # Mark as most recently used
 
 
 async def cache_delete(key: str) -> None:

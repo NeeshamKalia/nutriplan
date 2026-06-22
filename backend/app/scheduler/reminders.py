@@ -1,4 +1,9 @@
-"""APScheduler jobs for WhatsApp reminders."""
+"""APScheduler jobs for WhatsApp reminders.
+
+NEW-004: In multi-worker deployments (uvicorn --workers N), only ONE worker
+should run the scheduler to avoid duplicate reminders. This module uses
+an env-var marker to ensure at most one scheduler instance per process group.
+"""
 
 from zoneinfo import ZoneInfo
 
@@ -20,13 +25,35 @@ def get_scheduler() -> AsyncIOScheduler | None:
 
 
 def start_scheduler() -> AsyncIOScheduler | None:
-    """Start cron jobs when ENABLE_SCHEDULER is true."""
+    """Start cron jobs when ENABLE_SCHEDULER is true.
+
+    NEW-004: Uses an env marker to prevent duplicate schedulers in
+    multi-worker deployments. Only the first worker to call this
+    function will actually start the scheduler.
+    """
     global _scheduler
     if not settings.ENABLE_SCHEDULER:
         logger.info("Scheduler disabled (ENABLE_SCHEDULER=false)")
         return None
     if _scheduler is not None:
         return _scheduler
+
+    # NEW-004: Multi-worker guard — only one worker should run the scheduler.
+    # In production with --workers N, each worker forks and gets its own copy.
+    # We use an env marker set by the first worker to claim ownership.
+    import os
+    marker_key = "_NUTRIPLAN_SCHEDULER_PID"
+    existing_pid = os.environ.get(marker_key)
+    my_pid = str(os.getpid())
+
+    if existing_pid and existing_pid != my_pid:
+        logger.info(
+            "Scheduler already claimed by worker PID %s, skipping in PID %s",
+            existing_pid, my_pid,
+        )
+        return None
+
+    os.environ[marker_key] = my_pid
 
     _scheduler = AsyncIOScheduler(timezone=IST)
     _scheduler.add_job(
@@ -52,7 +79,8 @@ def start_scheduler() -> AsyncIOScheduler | None:
     )
     _scheduler.start()
     logger.info(
-        "Scheduler started (morning %s:00 IST, weekly Sun %s:00 IST)",
+        "Scheduler started on worker PID %s (morning %s:00 IST, weekly Sun %s:00 IST)",
+        my_pid,
         settings.REMINDER_MORNING_HOUR,
         settings.REMINDER_WEEKLY_HOUR,
     )

@@ -211,7 +211,7 @@ async def test_generate_plan_with_protocol_id(client):
     }
 
     with patch(
-        "app.ai.plan_generator._call_provider",
+        "app.ai.plan_generator_langgraph._call_provider",
         new=AsyncMock(return_value=(valid_plan, {"model": "test", "provider": "mock"})),
     ):
         resp = await client.post(

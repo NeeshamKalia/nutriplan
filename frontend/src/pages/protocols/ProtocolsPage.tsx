@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/Input';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Modal } from '../../components/ui/Modal';
 import { protocolsApi, type Protocol, type ProtocolCreatePayload } from '../../api/protocols';
+import { EmptyState } from '../../components/ui/EmptyState';
 import './ProtocolsPage.css';
 
 const EMPTY_FORM: ProtocolCreatePayload = {
@@ -142,12 +143,18 @@ export function ProtocolsPage() {
           <LoadingSpinner size="lg" />
         </div>
       ) : protocols.length === 0 ? (
-        <Card className="protocols-page__empty">
-          <h3>No protocols yet</h3>
-          <p className="text-muted">
-            Create a template manually, or save an approved plan from the plan editor.
-          </p>
-          <Button variant="primary" onClick={openCreate}>Create Protocol</Button>
+        <Card>
+          <EmptyState
+            icon="📋"
+            title={search ? 'No matching protocols' : 'No protocols yet'}
+            description={
+              search
+                ? 'Try adjusting your search to find the protocol you\'re looking for.'
+                : 'Create a reusable template for AI plan generation — e.g. a PCOS protocol with specific food guidelines.'
+            }
+            actionLabel={!search ? 'Create Protocol' : undefined}
+            onAction={!search ? openCreate : undefined}
+          />
         </Card>
       ) : (
         <div className="protocols-page__grid">

@@ -109,7 +109,8 @@ def test_route_after_safety_retries_on_critical_failure():
         }
     ]
     assert route_after_safety({"validations": validations, "safety_retry_count": 0}) == "prepare_retry"
-    assert route_after_safety({"validations": validations, "safety_retry_count": MAX_SAFETY_RETRIES}) == "format_output"
+    # Retries exhausted with critical failures — aborts generation
+    assert route_after_safety({"validations": validations, "safety_retry_count": MAX_SAFETY_RETRIES}) == "abort"
 
 
 def test_format_output_normalizes_valid_plan():
@@ -124,7 +125,7 @@ async def test_generate_meal_plan_runs_graph_with_mock_provider():
     valid = _valid_plan()
 
     with patch(
-        "app.ai.plan_generator._call_provider",
+        "app.ai.plan_generator_langgraph._call_provider",
         new=AsyncMock(return_value=(valid, {"model": "test", "provider": "mock"})),
     ):
         plan_data, metadata = await generate_meal_plan(client, food_items=[])

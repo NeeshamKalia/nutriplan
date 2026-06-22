@@ -229,7 +229,7 @@ async def create_plan(
     db: AsyncSession, dietitian_id: uuid.UUID, client_id: uuid.UUID, data: MealPlanCreate
 ) -> MealPlan:
     """Create a new meal plan with its days and items."""
-    await _verify_client_access(db, dietitian_id, client_id)
+    client = await _verify_client_access(db, dietitian_id, client_id)
 
     plan = MealPlan(
         client_id=client_id,
@@ -238,7 +238,8 @@ async def create_plan(
         week_start_date=data.week_start_date,
         custom_instructions=data.custom_instructions,
         status="draft",
-        days=[]
+        days=[],
+        validations=[]
     )
 
     for day_data in data.days:
@@ -251,6 +252,17 @@ async def create_plan(
             item = MealPlanItem(**item_data.model_dump())
             day.items.append(item)
         plan.days.append(day)
+
+    # Run validations on manually created plan
+    validations = run_all_validations(data.model_dump(), client)
+    for val in validations:
+        v = MealPlanValidation(
+            validation_type=val["type"],
+            passed=val["passed"],
+            severity=val["severity"],
+            message=val["message"],
+        )
+        plan.validations.append(v)
 
     _calculate_totals(plan)
 
@@ -314,8 +326,56 @@ async def update_plan(
 
     _calculate_totals(plan)
     plan.updated_at = datetime.now(timezone.utc)
-    
+
+    # Recompute validations when plan content (days) changed
+    if data.days is not None:
+        # Fetch client for allergen/dietary checks (tenant-scoped)
+        client = await _verify_client_access(db, dietitian_id, plan.client_id)
+
+        # Delete old validations
+        for existing_val in plan.validations:
+            await db.delete(existing_val)
+
+        # Reconstruct plan_data dict for the validator
+        plan_data = {
+            "days": [
+                {
+                    "day_number": day.day_number,
+                    "day_label": day.day_label,
+                    "items": [
+                        {
+                            "meal_type": item.meal_type,
+                            "food_name": item.food_name,
+                            "portion_description": item.portion_description,
+                            "portion_grams": item.portion_grams,
+                            "calories": item.calories,
+                            "protein_g": item.protein_g,
+                            "carbs_g": item.carbs_g,
+                            "fat_g": item.fat_g,
+                        }
+                        for item in day.items
+                    ],
+                }
+                for day in plan.days
+            ]
+        }
+
+        # Run validations and store results
+        validations = run_all_validations(plan_data, client)
+        plan.validations = []
+        for val in validations:
+            plan.validations.append(
+                MealPlanValidation(
+                    validation_type=val["type"],
+                    passed=val["passed"],
+                    severity=val["severity"],
+                    message=val["message"],
+                )
+            )
+
+    # Single atomic commit: plan edits + validation recomputation
     await db.commit()
+
     return await _get_plan_with_auth(db, dietitian_id, plan_id)
 
 
@@ -335,6 +395,25 @@ async def approve_plan(db: AsyncSession, dietitian_id: uuid.UUID, plan_id: uuid.
             status_code=409,
             detail=f"Cannot approve a plan with status '{plan.status}'. "
                    f"Only 'draft' plans can be approved.",
+        )
+
+    # Safety gate: block approval when critical/high validation failures exist
+    validation_result = await db.execute(
+        select(MealPlanValidation).where(
+            MealPlanValidation.meal_plan_id == plan.id,
+            MealPlanValidation.severity.in_(["critical", "high"]),
+            MealPlanValidation.passed.is_(False),
+        )
+    )
+    blocking_failures = validation_result.scalars().all()
+    if blocking_failures:
+        failure_details = "; ".join(
+            f"[{v.severity}] {v.validation_type}: {v.message}" for v in blocking_failures
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot approve plan with unresolved safety issues: {failure_details}. "
+                   f"Regenerate the plan or edit manually to fix these issues.",
         )
 
     plan.status = "approved"

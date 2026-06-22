@@ -39,3 +39,9 @@ htmlcov/
 
 # Gemini
 .gemini/
+
+# Test reports
+report.xml
+report2.xml
+pytest_articles.txt
+*.xml

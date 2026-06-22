@@ -1,0 +1,135 @@
+/* ============================================================
+   Settings Page — UX-001
+   ============================================================ */
+
+.settings-page {
+  max-width: 800px;
+  animation: fadeIn var(--transition-slow) ease-out;
+}
+
+.settings-page__header {
+  margin-bottom: var(--space-6);
+}
+
+.settings-page__title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-1);
+}
+
+.settings-page__subtitle {
+  color: var(--text-secondary);
+}
+
+/* Tabs */
+.settings-tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: var(--space-6);
+}
+
+.settings-tab {
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: color var(--transition-fast);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.settings-tab:hover {
+  color: var(--text-primary);
+  background: var(--color-neutral-50);
+}
+
+.settings-tab--active {
+  color: var(--color-primary-600);
+}
+
+.settings-tab--active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-primary-600);
+  border-radius: 1px 1px 0 0;
+}
+
+/* Section */
+.settings-section {
+  margin-bottom: var(--space-8);
+}
+
+.settings-section__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
+}
+
+.settings-section__description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-4);
+}
+
+/* Form */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.settings-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+@media (max-width: 600px) {
+  .settings-form__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-form__actions {
+  display: flex;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-color);
+}
+
+/* WhatsApp status */
+.whatsapp-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-neutral-50);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+}
+
+.whatsapp-status__icon {
+  font-size: 1.5rem;
+}
+
+.whatsapp-status__text {
+  font-size: var(--font-size-sm);
+}
+
+.whatsapp-status--connected {
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-200);
+}
+
+.whatsapp-status--disconnected {
+  background: var(--color-accent-50);
+  border: 1px solid var(--color-accent-200);
+}

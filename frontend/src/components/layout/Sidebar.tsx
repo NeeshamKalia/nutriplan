@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useTheme } from '../../contexts/ThemeContext';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <aside className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}>
@@ -47,6 +49,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       <div className="sidebar__footer">
+        <button 
+          className="sidebar__link sidebar__theme-toggle" 
+          onClick={toggleTheme}
+          aria-label="Toggle dark mode"
+          style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}
+        >
+          <span className="sidebar__icon">{theme === 'dark' ? '☀️' : '🌙'}</span>
+          {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+        </button>
         <Link to="/settings" className="sidebar__link" onClick={onClose}>
           <span className="sidebar__icon">⚙️</span>
           Settings

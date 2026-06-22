@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
 import { dashboardApi, type DashboardOverview } from '../../api/dashboard';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
@@ -23,18 +24,23 @@ export function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await dashboardApi.getOverview();
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to load dashboard stats', err);
+      setError('Failed to load dashboard data. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const data = await dashboardApi.getOverview();
-        setStats(data);
-      } catch (err) {
-        console.error('Failed to load dashboard stats', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchStats();
   }, []);
 
@@ -42,6 +48,35 @@ export function Dashboard() {
     return (
       <div className="flex justify-center py-12">
         <LoadingSpinner />
+      </div>
+    );
+  }
+
+  /* UX-002: Show error state instead of silently showing zeros */
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">Dashboard</h1>
+          <p className="text-muted">Overview of your practice.</p>
+        </div>
+        <Card>
+          <div style={{
+            textAlign: 'center',
+            padding: 'var(--space-12) var(--space-4)',
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: 'var(--space-4)', opacity: 0.5 }}>📊</div>
+            <h3 className="font-semibold" style={{ marginBottom: 'var(--space-2)', fontSize: 'var(--font-size-lg)' }}>
+              Unable to load dashboard
+            </h3>
+            <p className="text-muted" style={{ marginBottom: 'var(--space-6)', maxWidth: '400px', margin: '0 auto var(--space-6)' }}>
+              {error}
+            </p>
+            <Button variant="primary" onClick={fetchStats}>
+              Retry
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }

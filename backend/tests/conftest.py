@@ -1,16 +1,17 @@
 """Shared test configuration and fixtures.
 
-Patches PostgreSQL-specific column types (ARRAY, JSONB) to be SQLite-compatible.
+QA-001 FIX: When DATABASE_URL env var is set (e.g. in CI), tests run against
+PostgreSQL directly — no patching needed. When DATABASE_URL is not set
+(local dev without PostgreSQL), falls back to SQLite with ARRAY/JSONB patching.
 
-Strategy: Replace the `type` attribute on Column objects in the Table metadata
-before any sessions are created. This ensures SQLite gets JSON-encoded TEXT
-for ARRAY/JSONB columns.
+This ensures CI actually tests against the real database engine.
 """
 
 import json
 import os
 import uuid
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import Text, TypeDecorator
@@ -21,6 +22,10 @@ from app.database import Base, get_db
 
 # Import all models so they are registered with Base before patching
 import app.models  # noqa: F401
+
+# Detect whether we have a real PostgreSQL URL
+_CI_DATABASE_URL = os.environ.get("DATABASE_URL")
+_USE_POSTGRES = bool(_CI_DATABASE_URL and "postgresql" in _CI_DATABASE_URL)
 
 
 class JSONEncodedList(TypeDecorator):
@@ -64,7 +69,10 @@ class JSONEncodedDict(TypeDecorator):
 
 
 def _make_sqlite_compatible():
-    """Patch all ARRAY/JSONB columns in all models to use JSON-serializing types."""
+    """Patch all ARRAY/JSONB columns in all models to use JSON-serializing types.
+
+    Only applied when running against SQLite (local dev without PostgreSQL).
+    """
     from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
 
     if not hasattr(SQLiteTypeCompiler, "visit_ARRAY"):
@@ -81,18 +89,37 @@ def _make_sqlite_compatible():
                 col.type = JSONEncodedDict()
 
 
-_make_sqlite_compatible()
+# Only apply SQLite patching when NOT using PostgreSQL
+if not _USE_POSTGRES:
+    _make_sqlite_compatible()
+
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Reset in-memory rate limiter state between tests to prevent 429 cascades."""
+    from app.core.rate_limiter import _windows
+    _windows.clear()
+    yield
+    _windows.clear()
 
 
 @pytest_asyncio.fixture
 async def client():
-    """Create a test HTTP client with a fresh SQLite database."""
+    """Create a test HTTP client with a fresh database.
+
+    Uses PostgreSQL when DATABASE_URL is set (CI), SQLite otherwise (local dev).
+    """
     from app.main import app
 
-    db_file = f"test_{uuid.uuid4().hex[:8]}.db"
-    db_url = f"sqlite+aiosqlite:///{db_file}"
-
-    engine = create_async_engine(db_url, echo=False)
+    if _USE_POSTGRES:
+        # CI: Use real PostgreSQL — create tables, run tests, drop tables
+        engine = create_async_engine(_CI_DATABASE_URL, echo=False)
+    else:
+        # Local dev: Use ephemeral SQLite file
+        db_file = f"test_{uuid.uuid4().hex[:8]}.db"
+        db_url = f"sqlite+aiosqlite:///{db_file}"
+        engine = create_async_engine(db_url, echo=False)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -114,10 +141,17 @@ async def client():
         yield ac
 
     app.dependency_overrides.clear()
+
+    if _USE_POSTGRES:
+        # CI: Drop all tables after test (clean state for next run)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+
     await engine.dispose()
 
-    try:
-        if os.path.exists(db_file):
-            os.remove(db_file)
-    except PermissionError:
-        pass
+    if not _USE_POSTGRES:
+        try:
+            if os.path.exists(db_file):
+                os.remove(db_file)
+        except PermissionError:
+            pass

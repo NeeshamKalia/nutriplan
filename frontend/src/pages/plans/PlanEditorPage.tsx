@@ -6,6 +6,7 @@ import type { MealPlan, FoodItem, MealPlanItem } from '../../types/plan';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { FoodSearchModal } from '../../components/plans/FoodSearchModal';
 import { AIGenerateModal, type ProtocolOption } from '../../components/plans/AIGenerateModal';
+import { useToast } from '../../contexts/ToastContext';
 
 import './PlanEditorPage.css';
 
@@ -14,6 +15,7 @@ const MEAL_TYPES = ['breakfast', 'mid_morning', 'lunch', 'evening_snack', 'dinne
 export const PlanEditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
   
   const [plan, setPlan] = useState<MealPlan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,17 +55,23 @@ export const PlanEditorPage: React.FC = () => {
   const handleApprove = async () => {
     if (!plan) return;
     
-    if (!window.confirm('Are you sure you want to approve and send this plan to the client?')) {
+    if (!window.confirm('Are you sure you want to approve this plan? It will be sent to the client via WhatsApp if they have a number on file.')) {
       return;
     }
 
     try {
       setIsApproving(true);
-      await plansApi.approvePlan(plan.id);
-      await loadPlan(); // Reload to get updated status
-      alert('Plan approved and sent successfully!');
+      const updatedPlan = await plansApi.approvePlan(plan.id);
+      setPlan(updatedPlan);
+
+      // Show delivery-aware feedback based on actual status
+      if (updatedPlan.status === 'delivered') {
+        toast.success('Plan delivered!', 'The meal plan was approved and sent to the client via WhatsApp.');
+      } else if (updatedPlan.status === 'approved') {
+        toast.warning('Plan approved — delivery pending', 'The plan was approved but could not be sent via WhatsApp. The client may not have a phone number on file, or delivery failed.');
+      }
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to approve plan.');
+      toast.error('Approval failed', err.response?.data?.detail || 'Failed to approve plan.');
     } finally {
       setIsApproving(false);
     }

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { publicApi, type DietitianPublicProfile, type Article } from '../../api/articles';
+import { sanitizeHtml } from '../../utils/sanitize';
 import './PublicPages.css';
 
 export function PublicArticlePage() {
@@ -68,7 +69,7 @@ export function PublicArticlePage() {
       return (
         <div
           className="article-view__content article-view__content--html"
-          dangerouslySetInnerHTML={{ __html: raw }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(raw) }}
         />
       );
     }

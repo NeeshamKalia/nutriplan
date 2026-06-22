@@ -184,6 +184,52 @@ async def test_refresh_token_reuse_detected(client):
 
 
 @pytest.mark.asyncio
+async def test_refresh_token_theft_revokes_all_tokens(client):
+    """Full theft detection scenario:
+
+    1. User registers → gets refresh_token_A
+    2. User refreshes → gets refresh_token_B (A is revoked normally)
+    3. Attacker uses stolen refresh_token_A (already revoked)
+       → THEFT DETECTED → ALL tokens for this user are revoked
+    4. User tries refresh_token_B → REJECTED (even though B was valid)
+
+    This proves the entire token family is invalidated when theft is detected.
+    """
+    # Step 1: Register
+    reg = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "neha@nutriplan.in",
+            "password": "password123",
+            "full_name": "Dr. Neha Sharma",
+        },
+    )
+    token_a = reg.json()["refresh_token"]
+
+    # Step 2: Legitimate refresh → token_a revoked, token_b created
+    refresh_response = await client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": token_a}
+    )
+    assert refresh_response.status_code == 200
+    token_b = refresh_response.json()["refresh_token"]
+    assert token_b != token_a  # New token issued
+
+    # Step 3: Attacker uses stolen token_a (already revoked) → THEFT
+    theft_response = await client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": token_a}
+    )
+    assert theft_response.status_code == 401
+    assert "revoked" in theft_response.json()["detail"].lower()
+
+    # Step 4: Legitimate user's token_b is NOW ALSO INVALID
+    # This is the critical security assertion — the entire family is dead
+    legit_response = await client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": token_b}
+    )
+    assert legit_response.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_update_profile(client):
     """PUT /me updates practice profile fields."""
     reg = await client.post(

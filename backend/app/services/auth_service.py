@@ -31,6 +31,7 @@ from app.utils.security import (
     hash_token,
     verify_password,
 )
+from app.utils.encryption import encrypt
 
 logger = get_logger(__name__)
 
@@ -356,9 +357,12 @@ async def update_profile(
 async def setup_whatsapp(
     db: AsyncSession, dietitian: Dietitian, data: WhatsAppSetupRequest
 ) -> DietitianResponse:
-    """Store per-dietitian WhatsApp Business API credentials."""
+    """Store per-dietitian WhatsApp Business API credentials.
+
+    SEC-001: The access token is encrypted at rest using Fernet.
+    """
     dietitian.whatsapp_phone_number_id = data.whatsapp_phone_number_id
-    dietitian.whatsapp_access_token = data.whatsapp_access_token
+    dietitian.whatsapp_access_token = encrypt(data.whatsapp_access_token)
     if data.whatsapp_business_account_id:
         dietitian.whatsapp_business_account_id = data.whatsapp_business_account_id
 

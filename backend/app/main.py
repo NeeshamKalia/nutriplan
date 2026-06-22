@@ -4,11 +4,14 @@ FastAPI application entry point with structured logging and CORS middleware.
 """
 
 import time
+
 import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.core.logger import (
@@ -17,14 +20,24 @@ from app.core.logger import (
     request_id_ctx,
     setup_logging,
 )
+from app.core.rate_limiter import RateLimitMiddleware
 from app.core.redis import close_redis
 from app.scheduler.reminders import start_scheduler, stop_scheduler
 from app.routers.v1 import auth, clients, plans, foods, dashboard, progress, articles, protocols
 from app.routers import webhook, public, p_pages
+from app.services.whatsapp_service import whatsapp_service
 
 # Initialize structured logging before anything else
 setup_logging(settings.LOG_LEVEL)
 logger = get_logger(__name__)
+
+# SD-007: Configure LangSmith env vars at startup instead of lazily
+if settings.LANGCHAIN_TRACING_V2 and settings.LANGCHAIN_API_KEY:
+    import os
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
+    os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT
+    logger.info("LangSmith tracing enabled for project %s", settings.LANGCHAIN_PROJECT)
 
 
 @asynccontextmanager
@@ -32,6 +45,7 @@ async def lifespan(app: FastAPI):
     start_scheduler()
     yield
     stop_scheduler()
+    await whatsapp_service.close()  # SD-003: Close persistent httpx client
     await close_redis()
 
 
@@ -40,16 +54,56 @@ app = FastAPI(
     description="AI-powered practice OS for Indian nutritionists",
     version="0.1.0",
     lifespan=lifespan,
+    # Don't expose docs in production
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
 )
 
-# CORS — configurable origins
+# SEC-004: Restrict CORS methods and headers to what's actually used
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Correlation-ID"],
 )
+
+# SEC-003: Rate limiting on auth and public endpoints
+app.add_middleware(RateLimitMiddleware)
+
+
+# QA-006: Global exception handlers
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Structured HTTP error response with request_id context."""
+    rid = getattr(request.state, "request_id", None)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "request_id": rid,
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Catch-all for unhandled exceptions — never leak stack traces in production."""
+    rid = getattr(request.state, "request_id", None)
+    logger.exception(
+        "Unhandled exception on %s %s",
+        request.method,
+        request.url.path,
+        extra={"request_id": rid},
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "request_id": rid,
+        },
+    )
+
 
 # --- Webhook (Not versioned) ---
 app.include_router(webhook.router)
@@ -79,6 +133,7 @@ async def logging_middleware(request: Request, call_next):
     cid = request.headers.get("X-Correlation-ID", rid)
     request_id_ctx.set(rid)
     correlation_id_ctx.set(cid)
+    request.state.request_id = rid  # For exception handlers
     # user_id_ctx is set later by the auth dependency
 
     start = time.perf_counter()

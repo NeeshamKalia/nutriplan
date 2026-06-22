@@ -17,6 +17,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy import ForeignKey
 
 from app.database import Base
+from app.utils.encryption import EncryptedArrayText, EncryptedText
 
 
 class Client(Base):
@@ -45,10 +46,10 @@ class Client(Base):
     target_weight_kg = Column(Numeric(5, 1))
     activity_level = Column(String(50))
 
-    # Health profile
-    medical_conditions = Column(ARRAY(Text))
-    allergies = Column(ARRAY(Text))
-    food_preferences = Column(ARRAY(Text))
+    # Health profile — SEC-002: sensitive fields encrypted at rest
+    medical_conditions = Column(EncryptedArrayText())  # SEC-002
+    allergies = Column(EncryptedArrayText())  # SEC-002
+    food_preferences = Column(ARRAY(Text))  # Not health data, no encryption
     cuisine_preference = Column(String(50))
     dietary_type = Column(String(50))
 
@@ -59,9 +60,9 @@ class Client(Base):
     meals_per_day = Column(Integer, default=5)
     meal_timing_preferences = Column(JSONB)
 
-    # Additional notes
-    notes = Column(Text)
-    lifestyle_notes = Column(Text)
+    # Additional notes — SEC-002: encrypted at rest
+    notes = Column(EncryptedText())  # SEC-002
+    lifestyle_notes = Column(EncryptedText())  # SEC-002
 
     # Status
     status = Column(String(20), default="active")

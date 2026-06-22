@@ -121,6 +121,22 @@
   --topbar-height: 64px;
 }
 
+/* --- Dark Theme --- */
+[data-theme='dark'] {
+  --surface-body: #0f172a;
+  --surface-card: #1e293b;
+  --surface-sidebar: #020617;
+  --surface-sidebar-hover: #0f172a;
+  --surface-sidebar-active: #22a962;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-on-primary: #ffffff;
+  
+  --border-color: #334155;
+}
+
 /* --- Reset & Base --- */
 *,
 *::before,

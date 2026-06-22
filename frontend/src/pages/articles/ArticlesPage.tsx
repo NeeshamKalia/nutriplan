@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { articlesApi, type Article } from '../../api/articles';
+import { EmptyState } from '../../components/ui/EmptyState';
 import './ArticlesPage.css';
 
 export function ArticlesPage() {
@@ -140,15 +141,17 @@ export function ArticlesPage() {
         </div>
       ) : articles.length === 0 ? (
         <Card>
-          <div className="articles-page__empty">
-            <p className="articles-page__empty-title">No articles yet</p>
-            <p className="text-muted">
-              Write your first article to share nutrition tips with your clients.
-            </p>
-            <Button onClick={() => navigate('/articles/new')} style={{ marginTop: '1rem' }}>
-              Write Your First Article
-            </Button>
-          </div>
+          <EmptyState
+            icon="✍️"
+            title={search || statusFilter ? 'No matching articles' : 'No articles yet'}
+            description={
+              search || statusFilter
+                ? 'Try adjusting your search or filter to find what you\'re looking for.'
+                : 'Write your first article to share nutrition tips with your clients and boost your landing page SEO.'
+            }
+            actionLabel={!search && !statusFilter ? 'Write Your First Article' : undefined}
+            onAction={!search && !statusFilter ? () => navigate('/articles/new') : undefined}
+          />
         </Card>
       ) : (
         <div className="articles-page__list">

@@ -13,7 +13,7 @@ LangGraph vs LangChain (Phase 9) vs simple (Phase 4):
 
 from __future__ import annotations
 
-import json
+
 from typing import Literal, TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -157,8 +157,11 @@ def format_output(state: PlanGenerationState) -> PlanGenerationState:
 
 def route_after_safety(
     state: PlanGenerationState,
-) -> Literal["prepare_retry", "format_output"]:
-    """Retry generation when critical/high safety checks fail (max 2 retries)."""
+) -> Literal["prepare_retry", "format_output", "abort"]:
+    """Retry generation when critical/high safety checks fail (max 2 retries).
+
+    Aborts generation when max retries are exhausted with blocking failures.
+    """
     validations = state.get("validations", [])
     blocking = [
         v
@@ -167,7 +170,31 @@ def route_after_safety(
     ]
     if blocking and state.get("safety_retry_count", 0) < MAX_SAFETY_RETRIES:
         return "prepare_retry"
+    if blocking:
+        logger.error(
+            "Safety retries exhausted with %d blocking failures — aborting generation",
+            len(blocking),
+        )
+        return "abort"
     return "format_output"
+
+
+def abort_generation(state: PlanGenerationState) -> dict:
+    """Abort plan generation when safety checks fail after max retries."""
+    validations = state.get("validations", [])
+    blocking = [
+        v for v in validations
+        if not v["passed"] and v["severity"] in ("critical", "high")
+    ]
+    failure_summary = "; ".join(
+        f"[{v['severity']}] {v.get('type', 'unknown')}: {v.get('message', '')}"
+        for v in blocking
+    )
+    return {
+        **state,
+        "error": f"Plan generation aborted: unresolved safety failures after {MAX_SAFETY_RETRIES} retries. {failure_summary}",
+        "formatted_plan": None,
+    }
 
 
 def route_after_format(
@@ -191,6 +218,7 @@ def build_plan_generation_graph():
     graph.add_node("validate_safety", validate_safety)
     graph.add_node("prepare_safety_retry", prepare_safety_retry)
     graph.add_node("format_output", format_output)
+    graph.add_node("abort", abort_generation)
 
     graph.set_entry_point("parse_profile")
     graph.add_edge("parse_profile", "retrieve_context")
@@ -202,9 +230,11 @@ def build_plan_generation_graph():
         {
             "prepare_retry": "prepare_safety_retry",
             "format_output": "format_output",
+            "abort": "abort",
         },
     )
     graph.add_edge("prepare_safety_retry", "generate_plan")
+    graph.add_edge("abort", END)
     graph.add_conditional_edges(
         "format_output",
         route_after_format,
@@ -234,7 +264,13 @@ async def generate_meal_plan(
     protocol_context: str = "",
     previous_plans_context: str = "",
 ) -> tuple[dict, dict]:
-    """Generate a 7-day meal plan using the LangGraph multi-step workflow."""
+    """Generate a 7-day meal plan using the LangGraph multi-step workflow.
+
+    SD-004: Wrapped with asyncio.timeout(60) to enforce a 60-second maximum
+    across all retries (schema + safety). Raises TimeoutError if exceeded.
+    """
+    import asyncio
+
     initial_state: PlanGenerationState = {
         "client_profile": client_profile,
         "food_items": food_items,
@@ -246,7 +282,13 @@ async def generate_meal_plan(
     }
 
     graph = get_plan_generation_graph()
-    final_state = await graph.ainvoke(initial_state)
+
+    try:
+        async with asyncio.timeout(60):
+            final_state = await graph.ainvoke(initial_state)
+    except TimeoutError:
+        logger.error("LangGraph plan generation timed out after 60s")
+        raise ValueError("Plan generation timed out. Please try again.")
 
     formatted = final_state.get("formatted_plan")
     metadata = final_state.get("metadata") or {}
@@ -261,3 +303,4 @@ async def generate_meal_plan(
         metadata.get("schema_attempts", 1),
     )
     return formatted, metadata
+

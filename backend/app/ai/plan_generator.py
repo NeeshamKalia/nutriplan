@@ -37,15 +37,20 @@ _langsmith_configured = False
 
 
 def _configure_langsmith() -> None:
-    """Enable LangSmith tracing when API key and flag are set."""
+    """Ensure LangSmith tracing env vars are set.
+
+    SD-007: Env vars are now configured at startup in main.py lifespan.
+    This function exists for backward compatibility and is a safe no-op
+    if env vars are already set.
+    """
     global _langsmith_configured
     if _langsmith_configured:
         return
     if settings.LANGCHAIN_TRACING_V2 and settings.LANGCHAIN_API_KEY:
-        os.environ["LANGCHAIN_TRACING_V2"] = "true"
-        os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
-        os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT
-        logger.info("LangSmith tracing enabled for project %s", settings.LANGCHAIN_PROJECT)
+        # Env vars should already be set by main.py, but set defensively
+        os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
+        os.environ.setdefault("LANGCHAIN_API_KEY", settings.LANGCHAIN_API_KEY)
+        os.environ.setdefault("LANGCHAIN_PROJECT", settings.LANGCHAIN_PROJECT)
     _langsmith_configured = True
 
 

@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 export function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -85,11 +86,17 @@ export function ClientsPage() {
         </div>
       ) : clients.length === 0 ? (
         <Card>
-          <div style={{ padding: '3rem', textAlign: 'center' }}>
-            <h3 className="font-semibold text-lg mb-2">No clients found</h3>
-            <p className="text-muted mb-4">You haven't added any clients yet, or none match your search.</p>
-            <Button onClick={() => navigate('/clients/new')}>Add your first client</Button>
-          </div>
+          <EmptyState
+            icon="👥"
+            title="No clients found"
+            description={
+              search || status
+                ? 'No clients match your current search or filter. Try adjusting your criteria.'
+                : 'Add your first client to start creating personalized meal plans and tracking their progress.'
+            }
+            actionLabel={!search && !status ? 'Add your first client' : undefined}
+            onAction={!search && !status ? () => navigate('/clients/new') : undefined}
+          />
         </Card>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>

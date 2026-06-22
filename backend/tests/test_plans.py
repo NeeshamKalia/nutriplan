@@ -398,3 +398,321 @@ async def test_plan_multi_tenant_isolation(client):
     # Dietitian B tries to fetch Dietitian A's plan -> 404
     response = await client.get(f"/api/v1/plans/{plan_id_a}", headers=_auth_header(token_b))
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_unsafe_edit_blocks_approval(client, monkeypatch):
+    """Editing a plan to include an allergen should recompute validations and block approval.
+
+    Regression test for the unsafe-edit → stale-validation bug:
+    1. Create client with peanut allergy
+    2. Create safe plan (no peanuts)
+    3. Edit plan to add a peanut item
+    4. Verify validations are recomputed (critical allergen failure stored)
+    5. Verify approval is blocked with 400
+    """
+    async def mock_send(*args, **kwargs):
+        return {"messages": [{"id": "wamid.test"}]}
+
+    monkeypatch.setattr(
+        "app.services.plan_service.whatsapp_service.send_text_message",
+        mock_send,
+    )
+
+    token = await _register_and_get_token(client, email="allergy@test.com", name="Dr. Allergy Test")
+    # Create client WITH peanut allergy
+    resp = await client.post(
+        "/api/v1/clients",
+        json={
+            "full_name": "Allergy Client",
+            "whatsapp_number": "+919888888888",
+            "primary_goal": "weight_loss",
+            "allergies": ["peanut"],
+        },
+        headers=_auth_header(token),
+    )
+    client_id = resp.json()["id"]
+
+    # Step 1: Create a safe plan (no allergens)
+    safe_plan = {
+        "title": "Safe Plan",
+        "week_start_date": "2026-06-22",
+        "days": [
+            {
+                "day_number": 1,
+                "day_label": "Monday",
+                "items": [
+                    {
+                        "meal_type": "breakfast",
+                        "food_name": "Oats Porridge",
+                        "portion_description": "1 bowl",
+                        "portion_grams": 200,
+                        "calories": 250,
+                        "protein_g": 10,
+                        "carbs_g": 40,
+                        "fat_g": 5,
+                    }
+                ],
+            }
+        ],
+    }
+    create_resp = await client.post(
+        f"/api/v1/clients/{client_id}/plans",
+        json=safe_plan,
+        headers=_auth_header(token),
+    )
+    assert create_resp.status_code == 201
+    plan_id = create_resp.json()["id"]
+
+    # Step 2: Edit the plan to include a peanut item (allergen violation)
+    unsafe_update = {
+        "days": [
+            {
+                "day_number": 1,
+                "day_label": "Monday",
+                "items": [
+                    {
+                        "meal_type": "breakfast",
+                        "food_name": "Peanut Butter Toast",
+                        "portion_description": "2 slices",
+                        "portion_grams": 150,
+                        "calories": 350,
+                        "protein_g": 12,
+                        "carbs_g": 30,
+                        "fat_g": 18,
+                    }
+                ],
+            }
+        ],
+    }
+    update_resp = await client.put(
+        f"/api/v1/plans/{plan_id}",
+        json=unsafe_update,
+        headers=_auth_header(token),
+    )
+    assert update_resp.status_code == 200
+
+    # Step 3: Verify validations contain the allergen failure
+    plan_detail = await client.get(f"/api/v1/plans/{plan_id}", headers=_auth_header(token))
+    validations = plan_detail.json().get("validations", [])
+    allergen_val = [v for v in validations if v["validation_type"] == "allergens"]
+    assert len(allergen_val) == 1
+    assert allergen_val[0]["passed"] is False
+    assert allergen_val[0]["severity"] == "critical"
+
+    # Step 4: Attempt approval — should be blocked
+    approve_resp = await client.post(
+        f"/api/v1/plans/{plan_id}/approve",
+        headers=_auth_header(token),
+    )
+    assert approve_resp.status_code == 400
+    assert "safety issues" in approve_resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_fixing_allergen_allows_approval(client, monkeypatch):
+    """After fixing an allergen violation via edit, approval should succeed.
+
+    Regression test: stale 'failed' validations must be replaced by
+    'passed' validations when the allergen is removed.
+
+    Flow: create safe plan → edit to add allergen (triggers validation, blocks
+    approval) → edit to remove allergen (triggers revalidation, clears failure)
+    → approve succeeds.
+    """
+    async def mock_send(*args, **kwargs):
+        return {"messages": [{"id": "wamid.test"}]}
+
+    monkeypatch.setattr(
+        "app.services.plan_service.whatsapp_service.send_text_message",
+        mock_send,
+    )
+
+    token = await _register_and_get_token(client, email="fix@test.com", name="Dr. Fix Test")
+    resp = await client.post(
+        "/api/v1/clients",
+        json={
+            "full_name": "Fix Client",
+            "whatsapp_number": "+919777777777",
+            "primary_goal": "weight_loss",
+            "allergies": ["peanut"],
+        },
+        headers=_auth_header(token),
+    )
+    client_id = resp.json()["id"]
+
+    # Step 1: Create a safe plan (no allergens, no validations run at create)
+    safe_plan = {
+        "title": "Fix Test Plan",
+        "week_start_date": "2026-06-22",
+        "days": [
+            {
+                "day_number": 1,
+                "day_label": "Monday",
+                "items": [
+                    {
+                        "meal_type": "breakfast",
+                        "food_name": "Oats Porridge",
+                        "portion_description": "1 bowl",
+                        "portion_grams": 200,
+                        "calories": 250,
+                        "protein_g": 10,
+                        "carbs_g": 40,
+                        "fat_g": 5,
+                    }
+                ],
+            }
+        ],
+    }
+    create_resp = await client.post(
+        f"/api/v1/clients/{client_id}/plans",
+        json=safe_plan,
+        headers=_auth_header(token),
+    )
+    assert create_resp.status_code == 201
+    plan_id = create_resp.json()["id"]
+
+    # Step 2: Edit to add allergen — triggers validation
+    unsafe_update = {
+        "days": [
+            {
+                "day_number": 1,
+                "day_label": "Monday",
+                "items": [
+                    {
+                        "meal_type": "breakfast",
+                        "food_name": "Peanut Chutney",
+                        "portion_description": "1 tbsp",
+                        "portion_grams": 30,
+                        "calories": 120,
+                        "protein_g": 5,
+                        "carbs_g": 8,
+                        "fat_g": 8,
+                    }
+                ],
+            }
+        ],
+    }
+    update_resp = await client.put(
+        f"/api/v1/plans/{plan_id}",
+        json=unsafe_update,
+        headers=_auth_header(token),
+    )
+    assert update_resp.status_code == 200
+
+    # Confirm approval is blocked (allergen validation failed)
+    approve_resp = await client.post(f"/api/v1/plans/{plan_id}/approve", headers=_auth_header(token))
+    assert approve_resp.status_code == 400
+
+    # Step 3: Fix the plan — replace peanut with oats
+    safe_update = {
+        "days": [
+            {
+                "day_number": 1,
+                "day_label": "Monday",
+                "items": [
+                    {
+                        "meal_type": "breakfast",
+                        "food_name": "Oats Porridge",
+                        "portion_description": "1 bowl",
+                        "portion_grams": 200,
+                        "calories": 250,
+                        "protein_g": 10,
+                        "carbs_g": 40,
+                        "fat_g": 5,
+                    }
+                ],
+            }
+        ],
+    }
+    update_resp = await client.put(
+        f"/api/v1/plans/{plan_id}",
+        json=safe_update,
+        headers=_auth_header(token),
+    )
+    assert update_resp.status_code == 200
+
+    # Step 4: Verify validations are now passing
+    plan_detail = await client.get(f"/api/v1/plans/{plan_id}", headers=_auth_header(token))
+    validations = plan_detail.json().get("validations", [])
+    allergen_val = [v for v in validations if v["validation_type"] == "allergens"]
+    assert len(allergen_val) == 1
+    assert allergen_val[0]["passed"] is True
+
+    # Step 5: Approval should now succeed
+    approve_resp = await client.post(f"/api/v1/plans/{plan_id}/approve", headers=_auth_header(token))
+    assert approve_resp.status_code == 200
+    assert approve_resp.json()["status"] in ("approved", "delivered")
+
+
+@pytest.mark.asyncio
+async def test_create_unsafe_plan_blocks_approval(client, monkeypatch):
+    """Creating a plan with an allergen manually should validate and block approval.
+
+    Regression test for: manual plan creation performs no validation.
+    """
+    async def mock_send(*args, **kwargs):
+        return {"messages": [{"id": "wamid.test"}]}
+
+    monkeypatch.setattr(
+        "app.services.plan_service.whatsapp_service.send_text_message",
+        mock_send,
+    )
+
+    token = await _register_and_get_token(client, email="create_unsafe@test.com", name="Dr. Create Unsafe")
+    resp = await client.post(
+        "/api/v1/clients",
+        json={
+            "full_name": "Create Unsafe Client",
+            "whatsapp_number": "+919666666666",
+            "primary_goal": "weight_loss",
+            "allergies": ["peanut"],
+        },
+        headers=_auth_header(token),
+    )
+    client_id = resp.json()["id"]
+
+    # Create plan with allergen (peanut)
+    unsafe_plan = {
+        "title": "Unsafe Plan Created Manually",
+        "week_start_date": "2026-06-22",
+        "days": [
+            {
+                "day_number": 1,
+                "day_label": "Monday",
+                "items": [
+                    {
+                        "meal_type": "breakfast",
+                        "food_name": "Peanut Butter",
+                        "portion_description": "2 tbsp",
+                        "portion_grams": 30,
+                        "calories": 190,
+                        "protein_g": 8,
+                        "carbs_g": 6,
+                        "fat_g": 16,
+                    }
+                ],
+            }
+        ],
+    }
+    create_resp = await client.post(
+        f"/api/v1/clients/{client_id}/plans",
+        json=unsafe_plan,
+        headers=_auth_header(token),
+    )
+    assert create_resp.status_code == 201
+    plan_id = create_resp.json()["id"]
+
+    # Verify validations were run during creation and contain the allergen failure
+    plan_detail = await client.get(f"/api/v1/plans/{plan_id}", headers=_auth_header(token))
+    validations = plan_detail.json().get("validations", [])
+    allergen_val = [v for v in validations if v["validation_type"] == "allergens"]
+    assert len(allergen_val) == 1
+    assert allergen_val[0]["passed"] is False
+    assert allergen_val[0]["severity"] == "critical"
+
+    # Confirm approval is blocked
+    approve_resp = await client.post(f"/api/v1/plans/{plan_id}/approve", headers=_auth_header(token))
+    assert approve_resp.status_code == 400
+    assert "safety issues" in approve_resp.json()["detail"].lower()
+

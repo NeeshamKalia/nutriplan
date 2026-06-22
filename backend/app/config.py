@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://nutriplan:nutriplan@localhost:5432/nutriplan"
 
     # Auth
-    JWT_SECRET: str = "change-this-in-production"
+    JWT_SECRET: str = ""
+    ENCRYPTION_KEY: str = ""  # Fernet key for field-level encryption
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 60
     JWT_REFRESH_EXPIRATION_DAYS: int = 30
@@ -59,6 +60,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "NutriPlan"
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
+    SQL_ECHO: bool = False  # Separate from DEBUG to avoid leaking query data
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     FRONTEND_URL: str = "http://localhost:5173"
 
@@ -66,8 +68,11 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_settings(self):
-        if not self.DEBUG and self.JWT_SECRET == "change-this-in-production":
-            raise ValueError("JWT_SECRET must be changed from the default in production (DEBUG=False).")
+        if not self.DEBUG:
+            if not self.JWT_SECRET:
+                raise ValueError("JWT_SECRET must be set in production (DEBUG=False).")
+            if self.JWT_SECRET == "change-this-in-production":
+                raise ValueError("JWT_SECRET must be changed from the default in production.")
         return self
 
 

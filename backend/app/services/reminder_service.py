@@ -1,14 +1,18 @@
-"""Scheduled WhatsApp reminders — morning plan and weekly adherence summary."""
+"""Scheduled WhatsApp reminders — morning plan and weekly adherence summary.
+
+Fixed tenant isolation: queries iterate by dietitian first, then load only
+their clients. This prevents cross-tenant data leaks (SD-001).
+"""
 
 from datetime import date, timedelta
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.logger import get_logger
 from app.database import async_session
 from app.models.client import Client
+from app.models.dietitian import Dietitian
 from app.models.meal_log import MealLog
 from app.models.meal_plan import MealPlan, MealPlanDay
 from app.services.adherence_service import _adherence_pct
@@ -27,119 +31,145 @@ async def _get_today_day_number(plan: MealPlan) -> int:
 
 
 async def send_morning_reminders() -> int:
-    """Send today's meal plan to all active clients with a delivered plan."""
+    """Send today's meal plan to all active clients with a delivered plan.
+
+    Iterates per-dietitian to enforce multi-tenant isolation — each dietitian's
+    clients are queried scoped to that dietitian's ID, and messages are sent
+    using that dietitian's own WhatsApp credentials.
+    """
     sent = 0
     async with async_session() as db:
-        result = await db.execute(
-            select(Client).where(
-                Client.status == "active",
-                Client.whatsapp_number.isnot(None),
-            )
+        # Step 1: Load all active dietitians
+        dietitians_result = await db.execute(
+            select(Dietitian).where(Dietitian.is_active.is_(True))
         )
-        clients = result.scalars().all()
+        dietitians = dietitians_result.scalars().all()
 
-        for client in clients:
-            try:
-                greeting = f"🌅 Good morning, {client.full_name.split()[0]}!\n\n"
-                plan_result = await db.execute(
-                    select(MealPlan)
-                    .where(
-                        MealPlan.client_id == client.id,
-                        MealPlan.status == "delivered",
+        for dietitian in dietitians:
+            # Step 2: Load only THIS dietitian's active clients with WhatsApp
+            result = await db.execute(
+                select(Client).where(
+                    Client.dietitian_id == dietitian.id,
+                    Client.status == "active",
+                    Client.whatsapp_number.isnot(None),
+                )
+            )
+            clients = result.scalars().all()
+
+            for client in clients:
+                try:
+                    greeting = f"🌅 Good morning, {client.full_name.split()[0]}!\n\n"
+                    plan_result = await db.execute(
+                        select(MealPlan)
+                        .where(
+                            MealPlan.client_id == client.id,
+                            MealPlan.status == "delivered",
+                        )
+                        .order_by(MealPlan.created_at.desc())
                     )
-                    .order_by(MealPlan.created_at.desc())
-                )
-                plan = plan_result.scalars().first()
-                if not plan:
-                    continue
+                    plan = plan_result.scalars().first()
+                    if not plan:
+                        continue
 
-                day_num = await _get_today_day_number(plan)
-                day_result = await db.execute(
-                    select(MealPlanDay)
-                    .options(selectinload(MealPlanDay.items))
-                    .where(
-                        MealPlanDay.meal_plan_id == plan.id,
-                        MealPlanDay.day_number == day_num,
+                    day_num = await _get_today_day_number(plan)
+                    day_result = await db.execute(
+                        select(MealPlanDay)
+                        .options(selectinload(MealPlanDay.items))
+                        .where(
+                            MealPlanDay.meal_plan_id == plan.id,
+                            MealPlanDay.day_number == day_num,
+                        )
                     )
-                )
-                day = day_result.scalars().first()
-                if not day:
-                    continue
+                    day = day_result.scalars().first()
+                    if not day:
+                        continue
 
-                msg = greeting + format_daily_plan(day)
-                ok = await whatsapp_service.send_text_message(
-                    client.whatsapp_number,
-                    msg,
-                    db=db,
-                    client_id=client.id,
-                    dietitian_id=client.dietitian_id,
-                )
-                if ok:
-                    sent += 1
-            except Exception as exc:
-                logger.error(
-                    "Morning reminder failed for client %s: %s",
-                    client.id,
-                    exc,
-                )
+                    msg = greeting + format_daily_plan(day)
+                    ok = await whatsapp_service.send_text_message(
+                        client.whatsapp_number,
+                        msg,
+                        db=db,
+                        client_id=client.id,
+                        dietitian_id=dietitian.id,
+                    )
+                    if ok:
+                        sent += 1
+                except Exception:
+                    logger.exception(
+                        "Morning reminder failed for client %s (dietitian %s)",
+                        client.id,
+                        dietitian.id,
+                    )
 
     logger.info("Morning reminders sent to %s clients", sent)
     return sent
 
 
 async def send_weekly_summaries() -> int:
-    """Send 7-day adherence summary to active clients."""
+    """Send 7-day adherence summary to active clients.
+
+    Iterates per-dietitian to enforce multi-tenant isolation.
+    """
     sent = 0
     start_date = date.today() - timedelta(days=6)
 
     async with async_session() as db:
-        result = await db.execute(
-            select(Client).where(
-                Client.status == "active",
-                Client.whatsapp_number.isnot(None),
-            )
+        # Step 1: Load all active dietitians
+        dietitians_result = await db.execute(
+            select(Dietitian).where(Dietitian.is_active.is_(True))
         )
-        clients = result.scalars().all()
+        dietitians = dietitians_result.scalars().all()
 
-        for client in clients:
-            try:
-                logs_result = await db.execute(
-                    select(MealLog).where(
-                        MealLog.client_id == client.id,
-                        MealLog.log_date >= start_date,
+        for dietitian in dietitians:
+            # Step 2: Load only THIS dietitian's active clients with WhatsApp
+            result = await db.execute(
+                select(Client).where(
+                    Client.dietitian_id == dietitian.id,
+                    Client.status == "active",
+                    Client.whatsapp_number.isnot(None),
+                )
+            )
+            clients = result.scalars().all()
+
+            for client in clients:
+                try:
+                    logs_result = await db.execute(
+                        select(MealLog).where(
+                            MealLog.client_id == client.id,
+                            MealLog.log_date >= start_date,
+                        )
                     )
-                )
-                logs = logs_result.scalars().all()
-                completed = sum(1 for log in logs if log.status == "completed")
-                skipped = sum(1 for log in logs if log.status == "skipped")
-                deviated = sum(1 for log in logs if log.status == "deviated")
-                pct = _adherence_pct(completed, skipped, deviated)
+                    logs = logs_result.scalars().all()
+                    completed = sum(1 for log in logs if log.status == "completed")
+                    skipped = sum(1 for log in logs if log.status == "skipped")
+                    deviated = sum(1 for log in logs if log.status == "deviated")
+                    pct = _adherence_pct(completed, skipped, deviated)
 
-                if completed + skipped + deviated == 0:
-                    continue
+                    if completed + skipped + deviated == 0:
+                        continue
 
-                msg = format_weekly_summary(
-                    client.full_name.split()[0],
-                    completed,
-                    skipped,
-                    deviated,
-                    pct,
-                )
-                ok = await whatsapp_service.send_text_message(
-                    client.whatsapp_number,
-                    msg,
-                    db=db,
-                    client_id=client.id,
-                    dietitian_id=client.dietitian_id,
-                )
-                if ok:
-                    sent += 1
-            except Exception as exc:
-                logger.error(
-                    "Weekly summary failed for client %s: %s",
-                    client.id,
-                    exc,
-                )
+                    msg = format_weekly_summary(
+                        client.full_name.split()[0],
+                        completed,
+                        skipped,
+                        deviated,
+                        pct,
+                    )
+                    ok = await whatsapp_service.send_text_message(
+                        client.whatsapp_number,
+                        msg,
+                        db=db,
+                        client_id=client.id,
+                        dietitian_id=dietitian.id,
+                    )
+                    if ok:
+                        sent += 1
+                except Exception:
+                    logger.exception(
+                        "Weekly summary failed for client %s (dietitian %s)",
+                        client.id,
+                        dietitian.id,
+                    )
 
     logger.info("Weekly summaries sent to %s clients", sent)
     return sent

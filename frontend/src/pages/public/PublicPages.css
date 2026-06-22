@@ -485,12 +485,32 @@
 }
 
 @media (max-width: 640px) {
+  .landing__header-inner {
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    text-align: center;
+  }
+
   .landing__hero {
     padding: var(--space-10) var(--space-4) var(--space-8);
   }
 
   .landing__name {
     font-size: var(--font-size-2xl);
+  }
+
+  .landing__practice {
+    font-size: var(--font-size-base);
+  }
+
+  .landing__bio {
+    font-size: var(--font-size-sm);
+  }
+
+  .landing__whatsapp-hero {
+    width: 100%;
+    justify-content: center;
   }
 
   .landing__articles-grid {

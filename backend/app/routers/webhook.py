@@ -1,3 +1,9 @@
+"""WhatsApp webhook — Meta Cloud API receive endpoint.
+
+SEC-006: Development bypass for signature verification with explicit warning.
+QA-005: Uses logger.exception() for full tracebacks on handler errors.
+"""
+
 import hashlib
 import hmac
 from fastapi import APIRouter, Request, Response, BackgroundTasks, HTTPException, Query
@@ -152,12 +158,23 @@ async def process_whatsapp_message(payload: dict):
                                 dietitian_id=dietitian.id if dietitian else None,
                             )
                         
-        except Exception as e:
-            logger.error(f"Error processing webhook: {str(e)}")
+        except Exception:
+            # QA-005: Full traceback with logger.exception instead of logger.error
+            logger.exception("Error processing webhook payload")
 
 def verify_signature(payload_body: bytes, signature_header: str) -> bool:
-    """Verify the X-Hub-Signature-256 header."""
-    if not settings.WHATSAPP_APP_SECRET or not signature_header:
+    """Verify the X-Hub-Signature-256 header.
+
+    SEC-006: In development mode (DEBUG=True) with no app secret configured,
+    verification is bypassed with an explicit warning log.
+    """
+    if not settings.WHATSAPP_APP_SECRET:
+        if settings.DEBUG:
+            logger.warning("DEVELOPMENT MODE: Skipping webhook signature verification")
+            return True
+        return False
+
+    if not signature_header:
         return False
     
     expected_signature = hmac.new(
@@ -167,13 +184,17 @@ def verify_signature(payload_body: bytes, signature_header: str) -> bool:
     ).hexdigest()
     
     if signature_header.startswith("sha256="):
-        signature = signature_header[7:]
+        signature = signature_header[len("sha256="):]
         return hmac.compare_digest(expected_signature, signature)
     return False
 
 @router.post("/whatsapp")
 async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
-    """Receive messages from WhatsApp."""
+    """Receive messages from WhatsApp.
+
+    Must return 200 within 5 seconds (Meta requirement).
+    Message processing happens in BackgroundTasks.
+    """
     payload_body = await request.body()
     signature_header = request.headers.get("X-Hub-Signature-256", "")
     

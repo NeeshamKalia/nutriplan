@@ -28,6 +28,9 @@ import { ArticleEditorPage } from './pages/articles/ArticleEditorPage';
 // Pages — Protocols
 import { ProtocolsPage } from './pages/protocols/ProtocolsPage';
 
+// Pages — Settings
+import { SettingsPage } from './pages/settings/SettingsPage';
+
 // Pages — Public
 import { DietitianLandingPage } from './pages/public/DietitianLandingPage';
 import { PublicArticlePage } from './pages/public/PublicArticlePage';
@@ -103,7 +106,7 @@ function App() {
           <Route path="articles" element={<ArticlesPage />} />
           <Route path="articles/new" element={<ArticleEditorPage />} />
           <Route path="articles/:id/edit" element={<ArticleEditorPage />} />
-          <Route path="settings" element={<div>Settings Page (Coming Soon)</div>} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
 
         {/* Fallback */}
