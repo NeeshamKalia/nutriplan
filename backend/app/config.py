@@ -110,6 +110,16 @@ class Settings(BaseSettings):
         In development, issues are logged as warnings instead of errors
         so local dev and tests aren't blocked.
         """
+        # ── Auto-fix: Render/Heroku provide postgresql:// but we need asyncpg ──
+        if self.DATABASE_URL.startswith("postgres://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace(
+                "postgres://", "postgresql+asyncpg://", 1
+            )
+        elif self.DATABASE_URL.startswith("postgresql://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
+
         errors: list[str] = []
 
         if self.is_production:
