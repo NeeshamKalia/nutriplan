@@ -1,9 +1,34 @@
+import warnings
+from enum import Enum
+from typing import Literal
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class Environment(str, Enum):
+    DEVELOPMENT = "development"
+    TEST = "test"
+    PRODUCTION = "production"
+
+
+_PLACEHOLDER_KEYS = {
+    "your-gemini-key-here",
+    "sk-your-key-here",
+    "change-this-in-production",
+}
+
+
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+    """Application settings loaded from environment variables.
+
+    In production (DEBUG=False), the app fails fast if critical security
+    settings are missing or insecure. This prevents accidental deployment
+    with dev defaults.
+    """
+
+    # Environment
+    ENVIRONMENT: Environment = Environment.DEVELOPMENT
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://nutriplan:nutriplan@localhost:5432/nutriplan"
@@ -66,14 +91,79 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    @property
+    def is_production(self) -> bool:
+        """True when running in production mode (DEBUG=False or ENVIRONMENT=production)."""
+        return not self.DEBUG or self.ENVIRONMENT == Environment.PRODUCTION
+
+    @property
+    def has_ai_keys(self) -> bool:
+        """True if at least one valid (non-placeholder) AI key is configured."""
+        return bool(
+            (self.GEMINI_API_KEY and self.GEMINI_API_KEY not in _PLACEHOLDER_KEYS)
+            or (self.OPENAI_API_KEY and self.OPENAI_API_KEY not in _PLACEHOLDER_KEYS)
+        )
+
     @model_validator(mode="after")
     def validate_production_settings(self):
-        if not self.DEBUG:
-            if not self.JWT_SECRET:
-                raise ValueError("JWT_SECRET must be set in production (DEBUG=False).")
-            if self.JWT_SECRET == "change-this-in-production":
-                raise ValueError("JWT_SECRET must be changed from the default in production.")
+        """Fail fast on missing/insecure config in production.
+
+        In development, issues are logged as warnings instead of errors
+        so local dev and tests aren't blocked.
+        """
+        errors: list[str] = []
+
+        if self.is_production:
+            # ── Security: authentication secrets ─────────────────
+            if not self.JWT_SECRET or self.JWT_SECRET in _PLACEHOLDER_KEYS:
+                errors.append(
+                    "JWT_SECRET must be set to a strong random value in production. "
+                    "Generate with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+                )
+
+            if not self.ENCRYPTION_KEY:
+                errors.append(
+                    "ENCRYPTION_KEY must be set in production for field-level encryption. "
+                    "Generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+                )
+
+            # ── Security: CORS must not be open ──────────────────
+            if "*" in self.CORS_ORIGINS:
+                errors.append("CORS_ORIGINS must not contain '*' in production.")
+
+            if any("localhost" in origin for origin in self.CORS_ORIGINS):
+                errors.append(
+                    "CORS_ORIGINS contains localhost — update to your production domain."
+                )
+
+            # ── Security: frontend URL ───────────────────────────
+            if "localhost" in self.FRONTEND_URL:
+                errors.append(
+                    "FRONTEND_URL is still localhost — set to your production URL."
+                )
+
+            # ── Database: no default credentials ─────────────────
+            if "nutriplan:nutriplan@localhost" in self.DATABASE_URL:
+                errors.append(
+                    "DATABASE_URL uses default local credentials — "
+                    "set to your managed PostgreSQL URL."
+                )
+
+            if errors:
+                raise ValueError(
+                    "Production configuration errors:\n  - " + "\n  - ".join(errors)
+                )
+
+        else:
+            # ── Dev warnings (non-blocking) ──────────────────────
+            if not self.GEMINI_API_KEY or self.GEMINI_API_KEY in _PLACEHOLDER_KEYS:
+                warnings.warn(
+                    "GEMINI_API_KEY is not set — AI features will not work.",
+                    stacklevel=1,
+                )
+
         return self
 
 
 settings = Settings()
+
