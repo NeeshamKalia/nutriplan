@@ -196,12 +196,67 @@ input, textarea, select {
   border: 0;
 }
 
+/* Typography */
 .text-center { text-align: center; }
-.text-sm { font-size: var(--font-size-sm); }
 .text-xs { font-size: var(--font-size-xs); }
+.text-sm { font-size: var(--font-size-sm); }
+.text-lg { font-size: var(--font-size-lg); }
+.text-xl { font-size: var(--font-size-xl); }
+.text-2xl { font-size: var(--font-size-2xl); }
+.text-3xl { font-size: var(--font-size-3xl); }
 .text-muted { color: var(--text-secondary); }
 .font-medium { font-weight: var(--font-weight-medium); }
 .font-semibold { font-weight: var(--font-weight-semibold); }
+.font-bold { font-weight: var(--font-weight-bold); }
+
+/* Spacing */
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-4 { margin-bottom: var(--space-4); }
+.p-3 { padding: var(--space-3); }
+.p-4 { padding: var(--space-4); }
+.mx-auto { margin-left: auto; margin-right: auto; }
+.max-w-3xl { max-width: 48rem; }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.space-y-6 > * + * { margin-top: var(--space-6); }
+.space-y-8 > * + * { margin-top: var(--space-8); }
+
+/* Layout */
+.flex { display: flex; }
+.grid { display: grid; }
+.items-center { align-items: center; }
+.justify-end { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+
+/* Borders & Radius */
+.rounded-md { border-radius: var(--radius-md); }
+.border { border: 1px solid var(--border-color); }
+
+/* Semantic Colors — Text */
+.text-warning { color: var(--color-warning); }
+.text-red-500 { color: #ef4444; }
+.text-red-600 { color: #dc2626; }
+.text-red-700 { color: #b91c1c; }
+.text-green-500 { color: #22c55e; }
+.text-green-600 { color: var(--color-success); }
+.text-amber-600 { color: #d97706; }
+.text-gray-400 { color: var(--color-neutral-400); }
+.text-gray-600 { color: var(--color-neutral-600); }
+.text-blue-300 { color: #93c5fd; }
+.text-blue-800 { color: #1e40af; }
+
+/* Semantic Colors — Background */
+.bg-red-50 { background-color: #fef2f2; }
+.bg-blue-50 { background-color: #eff6ff; }
+.bg-green-50 { background-color: #f0fdf4; }
+.border-red-200 { border-color: #fecaca; }
+
+/* Dark mode overrides for semantic backgrounds */
+[data-theme='dark'] .bg-red-50 { background-color: rgba(239, 68, 68, 0.1); }
+[data-theme='dark'] .bg-blue-50 { background-color: rgba(59, 130, 246, 0.1); }
+[data-theme='dark'] .bg-green-50 { background-color: rgba(34, 197, 94, 0.1); }
+[data-theme='dark'] .text-gray-400 { color: var(--text-muted); }
+[data-theme='dark'] .text-gray-600 { color: var(--text-secondary); }
 
 /* --- Scrollbar --- */
 ::-webkit-scrollbar {
@@ -254,3 +309,4 @@ input, textarea, select {
 .animate-slide-up {
   animation: slideUp var(--transition-slow) ease-out;
 }
+

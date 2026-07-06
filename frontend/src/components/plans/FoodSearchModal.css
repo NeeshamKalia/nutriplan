@@ -19,7 +19,7 @@
 }
 
 .modal-content {
-  background: var(--surface-color);
+  background: var(--surface-card);
   width: 90%;
   max-width: 600px;
   max-height: 80vh;
@@ -54,7 +54,7 @@
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: var(--text-light);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.2s;
 }
@@ -82,8 +82,8 @@
 }
 
 .food-search-input:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  border-color: var(--color-primary-600);
+  box-shadow: 0 0 0 3px rgba(34, 169, 98, 0.1);
 }
 
 .food-results {
@@ -100,7 +100,7 @@
 
 .empty-results {
   text-align: center;
-  color: var(--text-light);
+  color: var(--text-muted);
   padding: 2rem;
 }
 
@@ -109,7 +109,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.25rem;
-  background: var(--background-color);
+  background: var(--surface-body);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -117,8 +117,8 @@
 }
 
 .food-result-card:hover {
-  border-color: var(--primary-color);
-  background: rgba(124, 58, 237, 0.02);
+  border-color: var(--color-primary-600);
+  background: rgba(34, 169, 98, 0.02);
   transform: translateX(4px);
 }
 
@@ -142,7 +142,7 @@
 
 .food-portion {
   font-size: 0.85rem;
-  color: var(--text-light);
+  color: var(--text-muted);
 }
 
 .food-macros {
