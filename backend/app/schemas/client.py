@@ -3,7 +3,9 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.utils.phone import normalize_phone
 
 
 class ClientCreate(BaseModel):
@@ -37,6 +39,12 @@ class ClientCreate(BaseModel):
     notes: str | None = None
     lifestyle_notes: str | None = None
 
+    @field_validator("whatsapp_number")
+    @classmethod
+    def normalize_whatsapp(cls, v: str) -> str:
+        """Normalize phone number to E.164 format for consistent WhatsApp lookups."""
+        return normalize_phone(v)
+
 
 class ClientUpdate(BaseModel):
     """Partial update of client profile — all fields optional."""
@@ -62,6 +70,15 @@ class ClientUpdate(BaseModel):
     meal_timing_preferences: dict | None = None
     notes: str | None = None
     lifestyle_notes: str | None = None
+
+    @field_validator("whatsapp_number")
+    @classmethod
+    def normalize_whatsapp(cls, v: str | None) -> str | None:
+        """Normalize phone number to E.164 if provided."""
+        if v is None:
+            return v
+        return normalize_phone(v)
+
 
 
 class ClientResponse(BaseModel):

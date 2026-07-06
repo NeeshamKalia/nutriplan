@@ -1,6 +1,8 @@
 """Schemas for public landing page endpoints."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.utils.phone import normalize_phone
 
 
 class IntakeSubmit(BaseModel):
@@ -13,6 +15,12 @@ class IntakeSubmit(BaseModel):
     primary_goal: str | None = Field(None, max_length=100)
     dietary_type: str | None = Field(None, max_length=50)
     notes: str | None = Field(None, max_length=2000)
+
+    @field_validator("whatsapp_number")
+    @classmethod
+    def normalize_whatsapp(cls, v: str) -> str:
+        """Normalize phone number to E.164 format."""
+        return normalize_phone(v)
 
 
 class IntakeResponse(BaseModel):
