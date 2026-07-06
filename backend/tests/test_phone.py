@@ -70,6 +70,14 @@ class TestNormalizePhone:
         result = normalize_phone("1234567890")
         assert result == "+1234567890"
 
+    def test_plus_with_no_digits_raises(self):
+        with pytest.raises(ValueError, match="Invalid phone number"):
+            normalize_phone("+")
+
+    def test_plus_with_invalid_country_code_raises(self):
+        with pytest.raises(ValueError, match="Invalid E.164"):
+            normalize_phone("+0123456789")
+
 
 class TestIsValidE164:
     """Test E.164 format validation."""

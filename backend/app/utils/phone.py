@@ -15,8 +15,8 @@ Supports common Indian input formats:
 import re
 
 
-# Strip everything except digits and leading +
-_STRIP_RE = re.compile(r"[^\d+]")
+# Strip everything except digits.
+_DIGIT_RE = re.compile(r"\D")
 
 # Indian phone: 10 digits, optionally prefixed with 0 or 91 or +91
 _INDIA_BARE_RE = re.compile(r"^[6-9]\d{9}$")  # 10-digit starting 6-9
@@ -51,18 +51,19 @@ def normalize_phone(raw: str) -> str:
     if not raw or not raw.strip():
         raise ValueError("Phone number cannot be empty.")
 
-    # Preserve leading + before stripping
-    has_plus = raw.strip().startswith("+")
-    cleaned = _STRIP_RE.sub("", raw.strip())
+    stripped = raw.strip()
+    has_plus = stripped.startswith("+")
+    cleaned = _DIGIT_RE.sub("", stripped)
 
     if not cleaned:
         raise ValueError(f"Invalid phone number: '{raw}'")
 
     # Already has + prefix → already has country code
     if has_plus:
-        # cleaned may still contain the + character, strip it
-        digits = cleaned.lstrip("+")
-        return f"+{digits}"
+        normalized = f"+{cleaned}"
+        if is_valid_e164(normalized):
+            return normalized
+        raise ValueError(f"Cannot normalize phone number: '{raw}'. Invalid E.164 number.")
 
     # Bare 10-digit Indian number (starts with 6-9)
     if _INDIA_BARE_RE.match(cleaned):
@@ -80,7 +81,9 @@ def normalize_phone(raw: str) -> str:
 
     # Fallback: assume digits include country code, just add +
     if len(cleaned) >= 10:
-        return f"+{cleaned}"
+        normalized = f"+{cleaned}"
+        if is_valid_e164(normalized):
+            return normalized
 
     raise ValueError(
         f"Cannot normalize phone number: '{raw}'. "
