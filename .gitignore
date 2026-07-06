@@ -9,6 +9,7 @@ build/
 .venv/
 venv/
 env/
+.verify_venv_*/
 
 # Node
 node_modules/
@@ -36,6 +37,8 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 *.db
+pytest_out*.txt
+pytest_*.txt
 
 # Gemini
 .gemini/
@@ -43,5 +46,10 @@ htmlcov/
 # Test reports
 report.xml
 report2.xml
-pytest_articles.txt
 *.xml
+
+# Logs
+*.log
+
+# Ruff cache
+.ruff_cache/
