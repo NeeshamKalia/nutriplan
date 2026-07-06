@@ -114,7 +114,6 @@ def reset_rate_limiter():
 @pytest.fixture(autouse=True)
 def mock_article_embeddings(monkeypatch):
     """Mock embedding service globally — tests should never call real AI APIs."""
-    import asyncio
     from app.services import article_embedding_service
 
     async def _noop_index(db, article):
