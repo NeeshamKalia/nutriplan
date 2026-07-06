@@ -1,0 +1,119 @@
+# NutriPlan CI/CD Pipeline
+# QA-001: Automated lint → test → build quality gate
+#
+# Triggers on pushes to main and PRs against main.
+# Uses PostgreSQL service container for backend integration tests.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  # ── Backend: Lint + Test ──────────────────────────────────────────
+  backend:
+    name: Backend (lint + test)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nutriplan
+          POSTGRES_PASSWORD: nutriplan
+          POSTGRES_DB: nutriplan_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint with ruff
+        run: |
+          pip install ruff
+          ruff check app/ --output-format=github
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://nutriplan:nutriplan@localhost:5432/nutriplan_test
+          JWT_SECRET: ci-test-secret-not-for-production
+          DEBUG: "true"
+          ENABLE_SCHEDULER: "false"
+          GEMINI_API_KEY: ""
+          OPENAI_API_KEY: ""
+          WHATSAPP_ACCESS_TOKEN: ""
+          WHATSAPP_APP_SECRET: ""
+        run: pytest tests/ -v --tb=short -x --timeout=60
+
+  # ── Frontend: Lint + Build ────────────────────────────────────────
+  frontend:
+    name: Frontend (lint + build)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test -- --run
+
+      - name: Build
+        run: npm run build
+
+  # ── Docker Build ──────────────────────────────────────────────────
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t nutriplan-backend:${{ github.sha }} -f backend/Dockerfile backend/
+
+      - name: Build frontend image
+        run: docker build -t nutriplan-frontend:${{ github.sha }} -f frontend/Dockerfile frontend/

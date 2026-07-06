@@ -1,0 +1,39 @@
+# Virtual environments
+.venv/
+venv/
+env/
+.verify_venv_*/
+
+# Test & coverage
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+pytest_out*.txt
+*.db
+
+# Caches
+__pycache__/
+*.py[cod]
+.ruff_cache/
+
+# Environment files
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+Dockerfile.dev
+
+# Docs
+*.md
+
+# Logs
+*.log
