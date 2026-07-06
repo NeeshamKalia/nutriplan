@@ -1,0 +1,53 @@
+# ============================================================
+# Render — Backend Web Service
+# https://render.com/docs/yaml-spec
+# ============================================================
+# This file tells Render how to build and run the NutriPlan backend.
+# Connect your GitHub repo → Render auto-detects this file.
+
+services:
+  - type: web
+    name: nutriplan-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: singapore  # Closest to India
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nutriplan-db
+          property: connectionString
+        # Render provides postgresql:// — we need postgresql+asyncpg://
+        # Set manually in dashboard after DB creation
+      - key: DEBUG
+        value: "false"
+      - key: ENVIRONMENT
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false  # Set manually — Fernet key
+      - key: GEMINI_API_KEY
+        sync: false  # Set manually
+      - key: CORS_ORIGINS
+        sync: false  # Set to your Vercel frontend URL
+      - key: FRONTEND_URL
+        sync: false  # Set to your Vercel frontend URL
+      - key: REDIS_ENABLED
+        value: "false"  # No Redis on free tier
+      - key: PLAN_GENERATOR_BACKEND
+        value: simple  # Start with direct API calls for demo
+      - key: LOG_LEVEL
+        value: INFO
+
+databases:
+  - name: nutriplan-db
+    plan: free
+    region: singapore
+    databaseName: nutriplan
+    user: nutriplan
+    postgresMajorVersion: "16"
+    # Note: Render free tier Postgres expires after 90 days.
+    # For a portfolio demo, this is fine.
