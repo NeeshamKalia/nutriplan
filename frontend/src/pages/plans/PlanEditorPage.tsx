@@ -6,6 +6,7 @@ import type { MealPlan, FoodItem, MealPlanItem } from '../../types/plan';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { FoodSearchModal } from '../../components/plans/FoodSearchModal';
 import { AIGenerateModal, type ProtocolOption } from '../../components/plans/AIGenerateModal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useToast } from '../../contexts/ToastContext';
 
 import './PlanEditorPage.css';
@@ -28,6 +29,8 @@ export const PlanEditorPage: React.FC = () => {
   const [isApproving, setIsApproving] = useState(false);
   const [isSavingProtocol, setIsSavingProtocol] = useState(false);
   const [protocolOptions, setProtocolOptions] = useState<ProtocolOption[]>([]);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showProtocolPrompt, setShowProtocolPrompt] = useState(false);
 
   useEffect(() => {
     loadPlan();
@@ -54,10 +57,12 @@ export const PlanEditorPage: React.FC = () => {
 
   const handleApprove = async () => {
     if (!plan) return;
-    
-    if (!window.confirm('Are you sure you want to approve this plan? It will be sent to the client via WhatsApp if they have a number on file.')) {
-      return;
-    }
+    setShowApproveConfirm(true);
+  };
+
+  const handleApproveConfirmed = async () => {
+    if (!plan) return;
+    setShowApproveConfirm(false);
 
     try {
       setIsApproving(true);
@@ -108,25 +113,29 @@ export const PlanEditorPage: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to regenerate plan.');
+      toast.error('Generation failed', 'Failed to regenerate plan.');
       setIsGenerating(false);
     }
   };
 
   const handleSaveAsProtocol = async () => {
     if (!plan) return;
-    const name = window.prompt('Protocol name:', plan.title || 'My Protocol');
-    if (!name?.trim()) return;
+    setShowProtocolPrompt(true);
+  };
+
+  const handleProtocolNameConfirmed = async (name?: string) => {
+    if (!plan || !name?.trim()) return;
+    setShowProtocolPrompt(false);
 
     try {
       setIsSavingProtocol(true);
       await protocolsApi.savePlanAsProtocol(plan.id, { name: name.trim() });
       const data = await protocolsApi.list();
       setProtocolOptions(data.protocols.map((p) => ({ id: p.id, name: p.name })));
-      alert('Protocol saved. You can reuse it when generating plans.');
+      toast.success('Protocol saved', 'You can reuse it when generating plans.');
     } catch (err) {
       console.error(err);
-      alert('Failed to save protocol.');
+      toast.error('Save failed', 'Failed to save protocol.');
     } finally {
       setIsSavingProtocol(false);
     }
@@ -165,7 +174,7 @@ export const PlanEditorPage: React.FC = () => {
         await plansApi.updatePlan(plan.id, { days: updatedPlan.days });
         setPlan(updatedPlan);
       } catch (err) {
-        alert('Failed to add food to meal plan.');
+        toast.error('Add failed', 'Failed to add food to meal plan.');
       }
     }
   };
@@ -182,7 +191,7 @@ export const PlanEditorPage: React.FC = () => {
         await plansApi.updatePlan(plan.id, { days: updatedPlan.days });
         setPlan(updatedPlan);
       } catch (err) {
-        alert('Failed to delete item from meal plan.');
+        toast.error('Delete failed', 'Failed to delete item from meal plan.');
       }
     }
   };
@@ -354,6 +363,27 @@ export const PlanEditorPage: React.FC = () => {
         onGenerate={handleGeneratePlan}
         isLoading={isGenerating}
         protocols={protocolOptions}
+      />
+
+      <ConfirmModal
+        isOpen={showApproveConfirm}
+        title="Approve Meal Plan"
+        message="Are you sure you want to approve this plan? It will be sent to the client via WhatsApp if they have a number on file."
+        confirmLabel="Approve & Send"
+        variant="primary"
+        onConfirm={handleApproveConfirmed}
+        onCancel={() => setShowApproveConfirm(false)}
+      />
+
+      <ConfirmModal
+        isOpen={showProtocolPrompt}
+        title="Save as Protocol"
+        message="Enter a name for this protocol. You can reuse it when generating future plans."
+        confirmLabel="Save Protocol"
+        promptPlaceholder="Protocol name"
+        promptDefault={plan?.title || 'My Protocol'}
+        onConfirm={handleProtocolNameConfirmed}
+        onCancel={() => setShowProtocolPrompt(false)}
       />
     </div>
   );

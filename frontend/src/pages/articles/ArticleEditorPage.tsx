@@ -6,6 +6,7 @@ import { Input, Textarea } from '../../components/ui/Input';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { Badge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { articlesApi, type Article, type ArticleCreatePayload } from '../../api/articles';
 import './ArticleEditorPage.css';
 
@@ -18,6 +19,8 @@ export function ArticleEditorPage() {
   const [saving, setSaving] = useState(false);
   const [broadcasting, setBroadcasting] = useState(false);
   const [article, setArticle] = useState<Article | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBroadcastConfirm, setShowBroadcastConfirm] = useState(false);
 
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
@@ -118,7 +121,12 @@ export function ArticleEditorPage() {
 
   const handleDelete = async () => {
     if (!article) return;
-    if (!window.confirm('Delete this article permanently?')) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!article) return;
+    setShowDeleteConfirm(false);
     try {
       await articlesApi.delete(article.id);
       navigate('/articles');
@@ -129,13 +137,12 @@ export function ArticleEditorPage() {
 
   const handleBroadcast = async () => {
     if (!article || article.status !== 'published') return;
-    if (
-      !window.confirm(
-        `Send "${article.title}" to all active clients via WhatsApp?`
-      )
-    ) {
-      return;
-    }
+    setShowBroadcastConfirm(true);
+  };
+
+  const handleBroadcastConfirmed = async () => {
+    if (!article) return;
+    setShowBroadcastConfirm(false);
     setBroadcasting(true);
     setError('');
     try {
@@ -347,6 +354,26 @@ export function ArticleEditorPage() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Article"
+        message="Delete this article permanently? This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <ConfirmModal
+        isOpen={showBroadcastConfirm}
+        title="Broadcast Article"
+        message={`Send "${article?.title}" to all active clients via WhatsApp?`}
+        confirmLabel="Send Broadcast"
+        variant="primary"
+        onConfirm={handleBroadcastConfirmed}
+        onCancel={() => setShowBroadcastConfirm(false)}
+      />
     </div>
   );
 }

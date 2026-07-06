@@ -7,15 +7,20 @@ import { Input } from '../../components/ui/Input';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { articlesApi, type Article } from '../../api/articles';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { useToast } from '../../contexts/ToastContext';
 import './ArticlesPage.css';
 
 export function ArticlesPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [articles, setArticles] = useState<Article[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [pendingBroadcast, setPendingBroadcast] = useState<Article | null>(null);
 
   const fetchArticles = async () => {
     setLoading(true);
@@ -43,12 +48,19 @@ export function ArticlesPage() {
   }, [search]);
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this article?')) return;
+    setPendingDelete(id);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!pendingDelete) return;
+    const id = pendingDelete;
+    setPendingDelete(null);
     try {
       await articlesApi.delete(id);
       fetchArticles();
     } catch (err) {
       console.error('Failed to delete article', err);
+      toast.error('Delete failed', 'Failed to delete article.');
     }
   };
 
@@ -67,25 +79,24 @@ export function ArticlesPage() {
 
   const handleBroadcast = async (article: Article) => {
     if (article.status !== 'published') {
-      window.alert('Publish the article before broadcasting to clients.');
+      toast.warning('Not published', 'Publish the article before broadcasting to clients.');
       return;
     }
-    if (
-      !window.confirm(
-        `Send "${article.title}" to all active clients via WhatsApp?`
-      )
-    ) {
-      return;
-    }
+    setPendingBroadcast(article);
+  };
+
+  const handleBroadcastConfirmed = async () => {
+    if (!pendingBroadcast) return;
+    const article = pendingBroadcast;
+    setPendingBroadcast(null);
     try {
       const result = await articlesApi.broadcast(article.id);
-      window.alert(
-        `Broadcast sent to ${result.sent_count} client${result.sent_count !== 1 ? 's' : ''}.` +
-          (result.skipped_count > 0
-            ? ` ${result.skipped_count} skipped (no WhatsApp number).`
-            : '') +
-          (result.failed_count > 0 ? ` ${result.failed_count} failed.` : '')
-      );
+      const details = [
+        `Sent to ${result.sent_count} client${result.sent_count !== 1 ? 's' : ''}.`,
+        result.skipped_count > 0 ? `${result.skipped_count} skipped (no WhatsApp number).` : '',
+        result.failed_count > 0 ? `${result.failed_count} failed.` : '',
+      ].filter(Boolean).join(' ');
+      toast.success('Broadcast sent', details);
       fetchArticles();
     } catch (err: unknown) {
       const message =
@@ -93,7 +104,7 @@ export function ArticlesPage() {
           ? (err as { response?: { data?: { detail?: string } } }).response?.data
               ?.detail
           : undefined;
-      window.alert(message || 'Failed to broadcast article.');
+      toast.error('Broadcast failed', message || 'Failed to broadcast article.');
     }
   };
 
@@ -249,6 +260,26 @@ export function ArticlesPage() {
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!pendingDelete}
+        title="Delete Article"
+        message="Are you sure you want to delete this article? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setPendingDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!pendingBroadcast}
+        title="Broadcast Article"
+        message={`Send "${pendingBroadcast?.title}" to all active clients via WhatsApp?`}
+        confirmLabel="Send Broadcast"
+        variant="primary"
+        onConfirm={handleBroadcastConfirmed}
+        onCancel={() => setPendingBroadcast(null)}
+      />
     </div>
   );
 }

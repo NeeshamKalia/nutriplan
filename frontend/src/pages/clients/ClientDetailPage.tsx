@@ -12,10 +12,12 @@ import type { MealPlan } from '../../types/plan';
 import { AIGenerateModal, type ProtocolOption } from '../../components/plans/AIGenerateModal';
 import { ProgressTab } from '../../components/clients/ProgressTab';
 import { AdherenceTab } from '../../components/clients/AdherenceTab';
+import { useToast } from '../../contexts/ToastContext';
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
   const [client, setClient] = useState<Client | null>(null);
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +46,7 @@ export function ClientDetailPage() {
       navigate(`/plans/${newPlan.id}`);
     } catch (err) {
       console.error(err);
-      alert('Failed to generate plan.');
+      toast.error('Generation failed', 'Failed to generate plan.');
       setIsGenerating(false);
     }
   };
@@ -63,7 +65,7 @@ export function ClientDetailPage() {
       });
       navigate(`/plans/${newPlan.id}`);
     } catch (err) {
-      alert('Failed to create plan.');
+      toast.error('Create failed', 'Failed to create plan.');
     }
   };
 

@@ -6,11 +6,13 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { useToast } from '../../contexts/ToastContext';
 
 export function ProgressTab({ clientId, startWeight }: { clientId: string, startWeight?: number }) {
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const toast = useToast();
   const [formData, setFormData] = useState({
     log_date: new Date().toISOString().split('T')[0],
     weight_kg: '',
@@ -47,7 +49,7 @@ export function ProgressTab({ clientId, startWeight }: { clientId: string, start
       fetchLogs();
     } catch (err) {
       console.error(err);
-      alert('Failed to log progress.');
+      toast.error('Log failed', 'Failed to log progress.');
     }
   };
 

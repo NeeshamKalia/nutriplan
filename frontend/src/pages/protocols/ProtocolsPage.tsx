@@ -5,6 +5,8 @@ import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { useToast } from '../../contexts/ToastContext';
 import { protocolsApi, type Protocol, type ProtocolCreatePayload } from '../../api/protocols';
 import { EmptyState } from '../../components/ui/EmptyState';
 import './ProtocolsPage.css';
@@ -31,6 +33,7 @@ function joinTags(values?: string[] | null): string {
 }
 
 export function ProtocolsPage() {
+  const toast = useToast();
   const [protocols, setProtocols] = useState<Protocol[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -39,6 +42,7 @@ export function ProtocolsPage() {
   const [editing, setEditing] = useState<Protocol | null>(null);
   const [form, setForm] = useState<ProtocolCreatePayload>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [pendingDeleteProtocol, setPendingDeleteProtocol] = useState<Protocol | null>(null);
 
   const fetchProtocols = async () => {
     setLoading(true);
@@ -99,19 +103,26 @@ export function ProtocolsPage() {
       fetchProtocols();
     } catch (err) {
       console.error('Failed to save protocol', err);
-      window.alert('Failed to save protocol.');
+      toast.error('Save failed', 'Failed to save protocol.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (protocol: Protocol) => {
-    if (!window.confirm(`Delete protocol "${protocol.name}"?`)) return;
+    setPendingDeleteProtocol(protocol);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!pendingDeleteProtocol) return;
+    const protocol = pendingDeleteProtocol;
+    setPendingDeleteProtocol(null);
     try {
       await protocolsApi.delete(protocol.id);
       fetchProtocols();
     } catch (err) {
       console.error('Failed to delete protocol', err);
+      toast.error('Delete failed', 'Failed to delete protocol.');
     }
   };
 
@@ -276,6 +287,16 @@ export function ProtocolsPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!pendingDeleteProtocol}
+        title="Delete Protocol"
+        message={`Delete protocol "${pendingDeleteProtocol?.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setPendingDeleteProtocol(null)}
+      />
     </div>
   );
 }
