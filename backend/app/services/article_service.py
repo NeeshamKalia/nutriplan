@@ -32,27 +32,46 @@ from app.whatsapp.message_formatter import format_article_broadcast
 logger = get_logger(__name__)
 
 
-async def _sync_article_index_impl(db: AsyncSession, article: Article) -> None:
-    """Index or remove embeddings when article publish state changes.
+async def _sync_article_index_bg(
+    article_id: uuid_mod.UUID,
+    article_status: str,
+) -> None:
+    """Background task: index or remove embeddings for an article.
 
-    This runs as a fire-and-forget background task so article CRUD
-    never blocks on external embedding/AI calls.
+    Creates its own database session — never uses the request-scoped one.
+    Accepts only primitive values (id, status) so there's no risk of
+    accessing a closed session or detached ORM object.
     """
+    from app.database import async_session  # local import to avoid circular
+
     try:
-        if article.status == "published":
-            await article_embedding_service.index_article(db, article)
-        else:
-            await article_embedding_service.delete_article_embeddings(db, article.id)
+        async with async_session() as db:
+            if article_status == "published":
+                # Re-fetch the article with a fresh session for indexing
+                result = await db.execute(
+                    select(Article).where(Article.id == article_id)
+                )
+                article = result.scalar_one_or_none()
+                if article:
+                    await article_embedding_service.index_article(db, article)
+            else:
+                await article_embedding_service.delete_article_embeddings(
+                    db, article_id
+                )
     except Exception as exc:
         logger.warning(
             "Article RAG indexing failed",
-            extra={"article_id": str(article.id), "error": str(exc)},
+            extra={"article_id": str(article_id), "error": str(exc)},
         )
 
 
-def _sync_article_index(db: AsyncSession, article: Article) -> None:
-    """Fire-and-forget wrapper — schedules embedding sync without blocking."""
-    asyncio.create_task(_sync_article_index_impl(db, article))
+def _sync_article_index(article_id: uuid_mod.UUID, status: str) -> None:
+    """Fire-and-forget wrapper — schedules embedding sync without blocking.
+
+    Only pass primitive values (article_id, status) — never pass
+    request-scoped db sessions or ORM objects to background tasks.
+    """
+    asyncio.create_task(_sync_article_index_bg(article_id, status))
 
 
 def _slugify(text: str) -> str:
@@ -147,7 +166,7 @@ async def create_article(
     db.add(article)
     await db.commit()
     await db.refresh(article)
-    _sync_article_index(db, article)
+    _sync_article_index(article.id, article.status)
 
     logger.info(
         "Article created",
@@ -244,7 +263,7 @@ async def update_article(
 
     await db.commit()
     await db.refresh(article)
-    _sync_article_index(db, article)
+    _sync_article_index(article.id, article.status)
 
     logger.info(
         "Article updated",
@@ -276,7 +295,7 @@ async def publish_article(
 
     await db.commit()
     await db.refresh(article)
-    _sync_article_index(db, article)
+    _sync_article_index(article.id, article.status)
     return _article_to_response(article)
 
 
@@ -300,7 +319,7 @@ async def unpublish_article(
     article.status = "draft"
     await db.commit()
     await db.refresh(article)
-    _sync_article_index(db, article)
+    _sync_article_index(article.id, article.status)
     return _article_to_response(article)
 
 

@@ -23,6 +23,13 @@ from app.database import Base, get_db
 # Import all models so they are registered with Base before patching
 import app.models  # noqa: F401
 
+# ── Speed: use fast bcrypt rounds in tests ─────────────────────────
+# Default bcrypt rounds=12 takes ~250ms per hash. With 142 tests
+# registering dietitians, that adds 30-60+ seconds of pure hashing.
+# Minimum rounds=4 cuts each hash to ~1ms.
+from app.utils.security import pwd_context
+pwd_context.update(schemes=["bcrypt"], bcrypt__rounds=4)
+
 # Detect whether we have a real PostgreSQL URL
 _CI_DATABASE_URL = os.environ.get("DATABASE_URL")
 _USE_POSTGRES = bool(_CI_DATABASE_URL and "postgresql" in _CI_DATABASE_URL)
@@ -102,6 +109,22 @@ def reset_rate_limiter():
     _windows.clear()
     yield
     _windows.clear()
+
+
+@pytest.fixture(autouse=True)
+def mock_article_embeddings(monkeypatch):
+    """Mock embedding service globally — tests should never call real AI APIs."""
+    import asyncio
+    from app.services import article_embedding_service
+
+    async def _noop_index(db, article):
+        return 0
+
+    async def _noop_delete(db, article_id):
+        pass
+
+    monkeypatch.setattr(article_embedding_service, "index_article", _noop_index)
+    monkeypatch.setattr(article_embedding_service, "delete_article_embeddings", _noop_delete)
 
 
 @pytest_asyncio.fixture
