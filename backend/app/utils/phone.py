@@ -60,7 +60,9 @@ def normalize_phone(raw: str) -> str:
 
     # Already has + prefix → already has country code
     if has_plus:
-        return f"+{cleaned}"
+        # cleaned may still contain the + character, strip it
+        digits = cleaned.lstrip("+")
+        return f"+{digits}"
 
     # Bare 10-digit Indian number (starts with 6-9)
     if _INDIA_BARE_RE.match(cleaned):
