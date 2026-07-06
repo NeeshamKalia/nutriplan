@@ -32,8 +32,12 @@ from app.whatsapp.message_formatter import format_article_broadcast
 logger = get_logger(__name__)
 
 
-async def _sync_article_index(db: AsyncSession, article: Article) -> None:
-    """Index or remove embeddings when article publish state changes."""
+async def _sync_article_index_impl(db: AsyncSession, article: Article) -> None:
+    """Index or remove embeddings when article publish state changes.
+
+    This runs as a fire-and-forget background task so article CRUD
+    never blocks on external embedding/AI calls.
+    """
     try:
         if article.status == "published":
             await article_embedding_service.index_article(db, article)
@@ -44,6 +48,11 @@ async def _sync_article_index(db: AsyncSession, article: Article) -> None:
             "Article RAG indexing failed",
             extra={"article_id": str(article.id), "error": str(exc)},
         )
+
+
+def _sync_article_index(db: AsyncSession, article: Article) -> None:
+    """Fire-and-forget wrapper — schedules embedding sync without blocking."""
+    asyncio.create_task(_sync_article_index_impl(db, article))
 
 
 def _slugify(text: str) -> str:
@@ -138,7 +147,7 @@ async def create_article(
     db.add(article)
     await db.commit()
     await db.refresh(article)
-    await _sync_article_index(db, article)
+    _sync_article_index(db, article)
 
     logger.info(
         "Article created",
@@ -235,7 +244,7 @@ async def update_article(
 
     await db.commit()
     await db.refresh(article)
-    await _sync_article_index(db, article)
+    _sync_article_index(db, article)
 
     logger.info(
         "Article updated",
@@ -267,7 +276,7 @@ async def publish_article(
 
     await db.commit()
     await db.refresh(article)
-    await _sync_article_index(db, article)
+    _sync_article_index(db, article)
     return _article_to_response(article)
 
 
@@ -291,7 +300,7 @@ async def unpublish_article(
     article.status = "draft"
     await db.commit()
     await db.refresh(article)
-    await _sync_article_index(db, article)
+    _sync_article_index(db, article)
     return _article_to_response(article)
 
 
