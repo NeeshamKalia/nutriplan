@@ -80,7 +80,7 @@ The POST webhook handler MUST return 200 within 5 seconds (Meta requirement). Pr
 | Layer | Technology |
 |-------|-----------|
 | Backend | FastAPI (Python 3.11+) |
-| Frontend | React 18 + Vite + TypeScript |
+| Frontend | React 19 + Vite + TypeScript |
 | Database | PostgreSQL 16 + pgvector |
 | AI (MVP) | Google Gemini API (free tier, direct calls, structured JSON output) |
 | Messaging | WhatsApp Business Cloud API |
